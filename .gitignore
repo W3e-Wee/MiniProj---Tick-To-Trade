@@ -1,3 +1,8 @@
 # Ignore large data files (dev1M, stress_full)
 stress_full*.csv
 dev_1M*.csv
+
+# Ignore any executable files
+*.exe
+*.o
+*.obj

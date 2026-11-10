@@ -1,0 +1,27 @@
+CC = gcc
+CFLAGS = -Wall -Wextra -I./src/stage0
+BUILD_DIR = build
+
+default: stage0
+
+# Builds all stage 0 files
+stage0: loop loop-o1 loop-o2 loop-o3 stage0_benchmark stage_benchmark-o2
+
+# Stage 0 Executables
+stage0_benchmark: src/stage0/stage0_helper.c src/stage0/sum_recursive.c
+	${CC} ${CFLAGS} src/stage0/stage0_helper.c src/stage0/sum_recursive.c -o sum_recursive
+
+loop: src/stage0/stage0_helper.c src/stage0/sum_loop.c
+	${CC} ${CFLAGS} src/stage0/stage0_helper.c src/stage0/sum_loop.c -o sum_loop
+
+# Optimisation Tier for Iterative Loop
+loop-o1: 
+	${CC} ${CFLAGS} -O1 src/stage0/stage0_helper.c src/stage0/sum_loop.c -o sum_loop_O1
+loop-o2:
+	${CC} ${CFLAGS} -O2 src/stage0/stage0_helper.c src/stage0/sum_loop.c -o sum_loop_O2
+loop-o3:
+	${CC} ${CFLAGS} -O3 src/stage0/stage0_helper.c src/stage0/sum_loop.c -o sum_loop_O3
+
+# Optimisation Tier for Stage 0 Benchmarking
+stage_benchmark-o2: 
+	${CC} ${CFLAGS} -O2 src/stage0/stage0_helper.c src/stage0/sum_recursive.c -o sum_recursive_O2
