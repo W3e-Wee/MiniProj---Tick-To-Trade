@@ -3,7 +3,6 @@
 #include "stage0_helper.h"
 
 #define MAX_NUMBER 100000000UL
-#define RECURSIVE_DEFAULT 10000UL
 
 int main(void)
 {
