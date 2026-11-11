@@ -25,3 +25,12 @@ loop-o3:
 # Optimisation Tier for Stage 0 Benchmarking
 stage_benchmark-o2: 
 	${CC} ${CFLAGS} -O2 src/stage0/stage0_helper.c src/stage0/sum_recursive.c -o sum_recursive_O2
+
+	stageA:
+	$(CC) -O2 $(INC) src/stageA.c provided/trade_io.c -o compiled/stageA
+stageA-test:
+	$(CC) -DSHORT_WIN=3 -DLONG_WIN=5 -Ddata_file $(INC) src/stageA.c provided/trade_io.c -o compiled/stageA_test
+run-stageA:
+	$(call fixpath,./compiled/stageA) > stageA_dev_results.txt
+run-stageA-test:
+	$(call fixpath,./compiled/stageA_test) > stageA_test_results.txt
