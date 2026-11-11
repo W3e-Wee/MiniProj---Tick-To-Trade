@@ -15,7 +15,7 @@
 #define PLOT_FILE "signals_test.dat"
 #else
 #define DATA_FILE "data/Group05/dev_1M.csv"
-#define PLOT_FILE "signals.dat"
+#define PLOT_FILE "compiled/signals.dat"
 #endif
 
 /*Define plot start and end*/

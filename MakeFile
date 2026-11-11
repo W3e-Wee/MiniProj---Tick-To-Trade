@@ -1,8 +1,15 @@
 CC = gcc
 CFLAGS = -Wall -Wextra -I./src/stage0
 BUILD_DIR = build
-
-default: stage0
+INC = -I provided
+SUDO =
+ifeq ($(OS),Windows_NT)
+    SUDO =
+    fixpath = $(subst /,\,$(1))
+else
+    SUDO = sudo
+    fixpath = $(1)
+endif
 
 # Builds all stage 0 files
 stage0: loop loop-o1 loop-o2 loop-o3 stage0_benchmark stage_benchmark-o2
@@ -26,11 +33,14 @@ loop-o3:
 stage_benchmark-o2: 
 	${CC} ${CFLAGS} -O2 src/stage0/stage0_helper.c src/stage0/sum_recursive.c -o sum_recursive_O2
 
-	stageA:
-	$(CC) -O2 $(INC) src/stageA.c provided/trade_io.c -o compiled/stageA
+stageA:
+	$(CC) -O2 $(INC) src/stageA/stageA.c provided/trade_io.c -o compiled/stageA
 stageA-test:
-	$(CC) -DSHORT_WIN=3 -DLONG_WIN=5 -Ddata_file $(INC) src/stageA.c provided/trade_io.c -o compiled/stageA_test
+	$(CC) -DSHORT_WIN=3 -DLONG_WIN=5 -Ddata_file $(INC) src/stageA/stageA.c provided/trade_io.c -o compiled/stageA_test
 run-stageA:
-	$(call fixpath,./compiled/stageA) > stageA_dev_results.txt
+	$(call fixpath,./compiled/stageA) > compiled/stageA_dev_results.txt
 run-stageA-test:
-	$(call fixpath,./compiled/stageA_test) > stageA_test_results.txt
+	$(call fixpath,./compiled/stageA_test) > compiled/stageA_test_results.txt
+
+plot-signals:
+	gnuplot plots/plot_signals

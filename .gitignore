@@ -7,6 +7,7 @@ dev_1M*.csv
 *.o
 *.obj
 .vscode/
+compiled/
 
 # OS metadata
 .DS_Store
