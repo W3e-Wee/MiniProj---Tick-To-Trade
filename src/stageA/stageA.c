@@ -12,10 +12,10 @@
 /*Define file paths*/
 #ifdef data_file
 #define DATA_FILE "data/Group05/test20.csv"
-#define PLOT_FILE "signals_test.dat"
+#define PLOT_FILE "compiled/stageA/signals_test.dat"
 #else
 #define DATA_FILE "data/Group05/dev_1M.csv"
-#define PLOT_FILE "compiled/signals.dat"
+#define PLOT_FILE "compiled/stageA/signals.dat"
 #endif
 
 /*Define plot start and end*/
@@ -65,8 +65,8 @@ int main(void) {
     double q = trade_qty();
 
     /* VWAP */
-    sum_pq = sum_pq + p * q;
-    sum_q = sum_q + q;
+    sum_pq += p * q;
+    sum_q += q;
     vwap = sum_pq / sum_q;
 
     /*Computating OHLC*/
@@ -76,10 +76,7 @@ int main(void) {
             printf("%lld %.8f %.8f %.8f %.8f %d\n", cur_sec, bar_open, bar_high, bar_low, bar_close, bar_trades);
             }
         cur_sec = sec;
-        bar_open = p;
-        bar_high = p;
-        bar_low = p;
-        bar_close = p;
+        bar_open = bar_high = bar_low = bar_close = p;
         bar_trades = 1;
     } 
     else {

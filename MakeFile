@@ -1,14 +1,18 @@
 CC = gcc
 CFLAGS = -Wall -Wextra -I./src/stage0
-BUILD_DIR = build
 INC = -I provided
+STAGE0_DIR = compiled/stage0
+STAGEA_DIR = compiled/stageA
+
 SUDO =
 ifeq ($(OS),Windows_NT)
     SUDO =
     fixpath = $(subst /,\,$(1))
+    MKDIR = if not exist $(call fixpath,$(1)) mkdir $(call fixpath,$(1))
 else
     SUDO = sudo
     fixpath = $(1)
+    MKDIR = mkdir -p $(1)
 endif
 
 # Builds all stage 0 files
@@ -16,31 +20,43 @@ stage0: loop loop-o1 loop-o2 loop-o3 stage0_benchmark stage_benchmark-o2
 
 # Stage 0 Executables
 stage0_benchmark: src/stage0/stage0_helper.c src/stage0/sum_recursive.c
-	${CC} ${CFLAGS} src/stage0/stage0_helper.c src/stage0/sum_recursive.c -o sum_recursive
+	$(call MKDIR,$(STAGE0_DIR))
+	${CC} ${CFLAGS} src/stage0/stage0_helper.c src/stage0/sum_recursive.c -o $(STAGE0_DIR)/sum_recursive
 
 loop: src/stage0/stage0_helper.c src/stage0/sum_loop.c
-	${CC} ${CFLAGS} src/stage0/stage0_helper.c src/stage0/sum_loop.c -o sum_loop
+	$(call MKDIR,$(STAGE0_DIR))
+	${CC} ${CFLAGS} src/stage0/stage0_helper.c src/stage0/sum_loop.c -o $(STAGE0_DIR)/sum_loop
 
 # Optimisation Tier for Iterative Loop
 loop-o1: 
-	${CC} ${CFLAGS} -O1 src/stage0/stage0_helper.c src/stage0/sum_loop.c -o sum_loop_O1
+	$(call MKDIR,$(STAGE0_DIR))
+	${CC} ${CFLAGS} -O1 src/stage0/stage0_helper.c src/stage0/sum_loop.c -o $(STAGE0_DIR)/sum_loop_O1
+
 loop-o2:
-	${CC} ${CFLAGS} -O2 src/stage0/stage0_helper.c src/stage0/sum_loop.c -o sum_loop_O2
+	$(call MKDIR,$(STAGE0_DIR))
+	${CC} ${CFLAGS} -O2 src/stage0/stage0_helper.c src/stage0/sum_loop.c -o $(STAGE0_DIR)/sum_loop_O2
+
 loop-o3:
-	${CC} ${CFLAGS} -O3 src/stage0/stage0_helper.c src/stage0/sum_loop.c -o sum_loop_O3
+	$(call MKDIR,$(STAGE0_DIR))
+	${CC} ${CFLAGS} -O3 src/stage0/stage0_helper.c src/stage0/sum_loop.c -o $(STAGE0_DIR)/sum_loop_O3
 
 # Optimisation Tier for Stage 0 Benchmarking
 stage_benchmark-o2: 
-	${CC} ${CFLAGS} -O2 src/stage0/stage0_helper.c src/stage0/sum_recursive.c -o sum_recursive_O2
+	$(call MKDIR,$(STAGE0_DIR))
+	${CC} ${CFLAGS} -O2 src/stage0/stage0_helper.c src/stage0/sum_recursive.c -o $(STAGE0_DIR)/sum_recursive_O2
 
 stageA:
-	$(CC) -O2 $(INC) src/stageA/stageA.c provided/trade_io.c -o compiled/stageA
-stageA-test:
-	$(CC) -DSHORT_WIN=3 -DLONG_WIN=5 -Ddata_file $(INC) src/stageA/stageA.c provided/trade_io.c -o compiled/stageA_test
-run-stageA:
-	$(call fixpath,./compiled/stageA) > compiled/stageA_dev_results.txt
-run-stageA-test:
-	$(call fixpath,./compiled/stageA_test) > compiled/stageA_test_results.txt
+	$(call MKDIR,$(STAGEA_DIR))
+	$(CC) -O2 $(INC) src/stageA/stageA.c provided/trade_io.c -o $(STAGEA_DIR)/stageA
 
-plot-signals:
-	gnuplot plots/plot_signals
+stageA-test:
+	$(call MKDIR,$(STAGEA_DIR))
+	$(CC) -DSHORT_WIN=3 -DLONG_WIN=5 -Ddata_file $(INC) src/stageA/stageA.c provided/trade_io.c -o $(STAGEA_DIR)/stageA_test
+
+run-stageA: stageA
+	$(call MKDIR,$(STAGEA_DIR))
+	$(call fixpath,./$(STAGEA_DIR)/stageA) > $(call fixpath,$(STAGEA_DIR)/stageA_dev_results.txt)
+
+run-stageA-test: stageA-test
+	$(call MKDIR,$(STAGEA_DIR))
+	$(call fixpath,./$(STAGEA_DIR)/stageA_test) > $(call fixpath,$(STAGEA_DIR)/stageA_test_results.txt)
