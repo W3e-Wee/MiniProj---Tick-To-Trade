@@ -3,6 +3,7 @@ CFLAGS = -Wall -Wextra -I./src/stage0
 INC = -I provided
 STAGE0_DIR = compiled/stage0
 STAGEA_DIR = compiled/stageA
+STAGEAPLUS_DIR = compiled/stageA_plus
 
 SUDO =
 ifeq ($(OS),Windows_NT)
@@ -60,3 +61,15 @@ run-stageA: stageA
 run-stageA-test: stageA-test
 	$(call MKDIR,$(STAGEA_DIR))
 	$(call fixpath,./$(STAGEA_DIR)/stageA_test) > $(call fixpath,$(STAGEA_DIR)/stageA_test_results.txt)
+
+
+stageAplus: 
+	$(call MKDIR,$(STAGEAPLUS_DIR))
+	$(CC) -O2 $(INC) src/stageA_plus/stageAplus.c src/stageA_plus/parser.c -o $(STAGEAPLUS_DIR)/stageAplus
+
+
+run-stageAplus: stageAplus
+	./$(STAGEAPLUS_DIR)/stageAplus
+
+
+
