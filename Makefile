@@ -5,6 +5,7 @@ STAGE0_DIR = compiled/stage0
 STAGEA_DIR = compiled/stageA
 STAGEAPLUS_DIR = compiled/stageA_plus
 STAGEB_DIR = compiled/stageB
+STAGEC_DIR = compiled/stageC
 
 SUDO =
 # OS specfic checks to create the relevant folders
@@ -125,6 +126,27 @@ plot-ladder:
 	gnuplot plots/plot_ladder
 	@echo "Plotted ladder to ladder.png"
 
-run-ladder-full: run-ladder plot-ladder
+run-ladder-full: 
+	run-ladder plot-ladder
 
+# =====================================
+# Stage C build and execute commands
+# =====================================
+stageC: 
+	$(call MKDIR,$(STAGEC_DIR))
+	$(CC) -O2 $(INC) src/stageC/stageC.c src/stageA_plus/parser.c -o $(STAGEC_DIR)/stageC
 
+stageC-test:
+	$(CC) -O2 -DSHORT_WIN=3 -DLONG_WIN=5 -Ddata_file $(INC) src/stageC/stageC.c src/stageA_plus/parser.c -o $(STAGEC_DIR)/stageC_test
+
+stageC-stress:
+	$(CC) -O2 -Dstress_file $(INC) src/stageC/stageC.c src/stageA_plus/parser.c -o $(STAGEC_DIR)/stageC_stress
+
+run-stageC:
+	./$(STAGEC_DIR)/stageC
+
+run-stageC-test: stageC-test
+	./$(STAGEC_DIR)/stageC_test
+
+run-stageC-stress: stageC-stress
+	./$(STAGEC_DIR)/stageC_stress
