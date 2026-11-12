@@ -21,7 +21,7 @@ endif
 # Stage 0 build commands
 # ============================
 # Builds all stage 0 files
-stage0: loop loop-o1 loop-o2 loop-o3 stage0_benchmark stage_benchmark-o2
+stage0: loop loop-o1 loop-o2 loop-o3 stage0_benchmark stage0_benchmark-o2
 stage0_benchmark: src/stage0/stage0_helper.c src/stage0/sum_recursive.c
 	$(call MKDIR,$(STAGE0_DIR))
 	${CC} ${CFLAGS} src/stage0/stage0_helper.c src/stage0/sum_recursive.c -o $(STAGE0_DIR)/sum_recursive
