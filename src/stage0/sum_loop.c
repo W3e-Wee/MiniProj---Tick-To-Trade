@@ -40,7 +40,7 @@ int main(void)
         }
     }
 
-    for (u_int i = 0; i < RUNS; i++)
+    for (unsigned int i = 0; i < RUNS; i++)
     {
         start = now_ns(); // start timer
         iterative_sum = sum_loop(n);
