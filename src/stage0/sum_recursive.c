@@ -8,10 +8,12 @@
 
 int main()
 {
+    // Recusrion and loop var
     volatile uint64_t depth = DEFAULT_MAX_N;
     uint64_t iter_sum = 0;
     uint64_t recur_sum = 0;
 
+    // Timing var
     uint64_t start = 0;
     uint64_t end = 0;
     uint64_t iter_avg = 0;

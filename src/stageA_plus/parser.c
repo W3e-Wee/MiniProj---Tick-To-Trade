@@ -1,18 +1,18 @@
 #include <stdio.h>
 #include "parser.h"
 
-/* Week 8: sscanf version, results handed back through pointers */
-
-/***
- * Reads the next trade from fp and hands the values back through the pointers.
+/**
+ * Reads each row from `*fp` and hands the values back through the pointers.
  *
- * @param fp - The file pointer to read from.
- * @param ts - Pointer to a long long where the timestamp will be stored.
- * @param price - Pointer to a double where the price will be stored.
- * @param qty - Pointer to a double where the quantity will be stored.
- * @param is_buy - Pointer to an int where the buy/sell indicator will be stored (1 for buy, 0 for sell).
+ * @param fp `FILE` pointer to read from.
+ * @param ts Pointer to a `long long` where the timestamp is stored.
+ * @param price Pointer to a `double` where the price is stored.
+ * @param qty Pointer to a `double` where the quantity is stored.
+ * @param is_buy Pointer to an `int` where BUY/SELL indicator is stored (1 for buy, 0 for sell).
  *
- * @return Returns 1 if a trade was read successfully, 0 at the end of the file.
+ * @return
+ * `1` - Trade was read successfully;
+ * `0` - End of read file.
  */
 int read_trade(FILE *fp, long long *ts, double *price, double *qty, int *is_buy)
 {
@@ -36,17 +36,23 @@ int read_trade(FILE *fp, long long *ts, double *price, double *qty, int *is_buy)
     return 0;
 }
 
-/* Week 9 helper (only used inside this file): turns digits like 75436.94000000 into a double and moves *i past the number */
-double read_decimal(const char line[], int *i)
+/**
+ * Converts ASCII value in csv file to decimal (e.g. '7' (ASCII 55) to 7)
+ *
+ * @param line[] One row of the csv file
+ * @param i `int` pointer to position in the row
+ *
+ * @return A `double` type decimal value
+ */
+static double read_decimal(const char line[], int *i)
 {
     long long digits = 0;
     long long scale = 1;
 
-    
     while (line[*i] >= '0' && line[*i] <= '9')
     {
         /*Goes through each no. char and converts from ascii to decimal value and shifts it left by multiplying it by 10*/
-        digits *= 10 + (line[*i] - '0');
+        digits = digits * 10 + (line[*i] - '0');
         (*i)++;
     }
     if (line[*i] == '.')
@@ -55,7 +61,7 @@ double read_decimal(const char line[], int *i)
         while (line[*i] >= '0' && line[*i] <= '9')
         {
             /*Accounts for '.' taking decimal place and uses scale to shift right*/
-            digits *= 10 + (line[*i] - '0');
+            digits = digits * 10 + (line[*i] - '0');
             scale *= 10;
             (*i)++;
         }
@@ -63,7 +69,9 @@ double read_decimal(const char line[], int *i)
     return (double)digits / (double)scale;
 }
 
-/* Week 9: same job as read_trade, but walks the line character by character */
+/**
+ * Does same job as `read_trade`, but walks the line character by character.
+ */
 int fast_parser(FILE *fp, long long *ts, double *price, double *qty, int *is_buy)
 {
     char line[256];
@@ -72,12 +80,12 @@ int fast_parser(FILE *fp, long long *ts, double *price, double *qty, int *is_buy
 
     while (fgets(line, sizeof line, fp) != NULL)
     {
-        if (line[0] < '0' || line[0] > '9') /*Ignores headers or empty lines that dont have trade ids*/
-            continue; 
+        if (line[0] < '0' || line[0] > '9')     /* Goes to next row if trade id is invalid */
+            continue;
         i = 0;
-        while (line[i] != ',' && line[i] != '\0') /* skip trade id */
-            i++; 
-        if (line[i] == '\0')
+        while (line[i] != ',' && line[i] != '\0')   /* Goes through each character in the row till it hit ',' or end of row */
+            i++;
+        if (line[i] == '\0')     /* Goes to next row if end of row */
             continue;
         i++;
         *price = read_decimal(line, &i);

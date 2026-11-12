@@ -24,24 +24,24 @@
 
 int main(void)
 {
-    /*VWAP VAR*/
+    /*VWAP VAR */
     double sum_pq = 0.0; /* sum of price x qty */
     double sum_q = 0.0;  /* sum of qty */
     double vwap = 0.0;   /* declared here so printf can see it after the loop */
 
-    /*OHLC VAR*/
+    /*OHLC VAR */
     double bar_open = 0.0, bar_high = 0.0, bar_low = 0.0, bar_close = 0.0; /* using bar_ to avoid functions for open*/
     long long cur_sec = -1;                                                /* current second */
     int bar_trades = 0;
 
-    /*SMA VAR*/
+    /*SMA VAR */
     double short_prices[SHORT_WIN];
     double long_prices[LONG_WIN];
     int count = 0;
     double sma_short = 0.0;
     double sma_long = 0.0;
 
-    /* Buy Sell Signals VAR*/
+    /* Buy Sell Signals VAR */
     double d = 0.0, d_prev = 0.0;
     int trade_signal = 0; /* 1 = BUY, -1 = SELL, 0 = none */
     int buy_count = 0, sell_count = 0;
@@ -49,10 +49,11 @@ int main(void)
     /* Using DATA_FILE as original is hardcoded to test.cv making 30 60 run for 20 lines only*/
     if (!open_trades(DATA_FILE))
     {
+        printf("Error: Unable to open dev_1M at %s", DATA_FILE);
         return 1;
     }
 
-    /*For the plot*/
+    /* Opens and writes to PLOT_FILE */
     FILE *out = fopen(PLOT_FILE, "w");
     if (out == NULL)
     {
@@ -63,7 +64,7 @@ int main(void)
     while (next_trade())
     {
 
-        /*Computating VWAP*/
+        /*Compute VWAP*/
         double p = trade_price();
         double q = trade_qty();
 
@@ -72,7 +73,7 @@ int main(void)
         sum_q += q;
         vwap = sum_pq / sum_q;
 
-        /*Computating OHLC*/
+        /*Compute OHLC*/
         long long sec = trade_time() / 1000000;
         if (sec != cur_sec)
         {
@@ -94,7 +95,7 @@ int main(void)
             bar_trades++;
         }
 
-        /*Computating SMA*/
+        /*Compute SMA*/
         /* Store the prices in the 30, 60 array */
         short_prices[count % SHORT_WIN] = p;
         long_prices[count % LONG_WIN] = p;
@@ -106,7 +107,7 @@ int main(void)
             int i;
             for (i = 0; i < SHORT_WIN; i++)
             {
-                sum = sum + short_prices[i];
+                sum += short_prices[i];
             }
             sma_short = sum / SHORT_WIN;
         }
@@ -116,7 +117,7 @@ int main(void)
             int i;
             for (i = 0; i < LONG_WIN; i++)
             {
-                sum = sum + long_prices[i];
+                sum += long_prices[i];
             }
             sma_long = sum / LONG_WIN;
         }
@@ -160,7 +161,7 @@ int main(void)
     fclose(out);
 
     /*Print total buy and sell */
-    printf("BUY = %d, SELL = %d\n", buy_count, sell_count);
+    printf("\033[32mBUY\033[0m = %d, \033[31mSELL\033[0m = %d\n", buy_count, sell_count);
 
     printf("VWAP = %.8f\n", vwap);
     if (bar_trades > 0)
