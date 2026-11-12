@@ -396,20 +396,18 @@ int run_v4(int *buys, int *sells, double *vwap_out)
 /* runs one version by number (0 to 4); returns 0 if the file is missing */
 int run_version(int which, int *buys, int *sells, double *vwap_out)
 {
-    if (which == 0)
+    switch (which)
     {
+    case 0:
         return run_v0(buys, sells, vwap_out);
-    }
-    if (which == 1)
-    {
+
+    case 1:
         return run_v1(buys, sells, vwap_out);
-    }
-    if (which == 2)
-    {
+
+    case 2:
         return run_v2(buys, sells, vwap_out);
-    }
-    if (which == 3)
-    {
+
+    case 3:
         return run_v3(buys, sells, vwap_out);
     }
     return run_v4(buys, sells, vwap_out);
@@ -483,11 +481,10 @@ int main(void)
                buys[which], sells[which], same ? "same as V0" : "DIFFERENT");
     }
 
-
-/* only for the stress build, so test20/dev numbers never overwrite it. */   
+/* only for the stress build, so test20/dev numbers never overwrite it. */
 #ifdef stress_file
-  
-       /* All timing is finished by now, so writing a file cannot distort any measurement. */
+
+    /* All timing is finished by now, so writing a file cannot distort any measurement. */
     {
         FILE *out = fopen("compiled/stageB/ladder.dat", "w");
         if (out == NULL)
