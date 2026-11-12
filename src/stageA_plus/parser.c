@@ -46,7 +46,7 @@ double read_decimal(const char line[], int *i)
     while (line[*i] >= '0' && line[*i] <= '9')
     {
         /*Goes through each no. char and converts from ascii to decimal value and shifts it left by multiplying it by 10*/
-        digits *= 10 + (line[*i] - '0');
+        digits = digits * 10 + (line[*i] - '0');
         (*i)++;
     }
     if (line[*i] == '.')
@@ -55,7 +55,7 @@ double read_decimal(const char line[], int *i)
         while (line[*i] >= '0' && line[*i] <= '9')
         {
             /*Accounts for '.' taking decimal place and uses scale to shift right*/
-            digits *= 10 + (line[*i] - '0');
+            digits = digits * 10 + (line[*i] - '0');
             scale *= 10;
             (*i)++;
         }
