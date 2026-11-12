@@ -2,7 +2,7 @@
 #include "timing.h"
 #include <stdio.h>
 #include <math.h>
-#include "parser.h"
+#include "../stageA_plus/parser.h"
 #include "trade_io.h"
 
 /* Same windows as stageA / stageB */
@@ -489,7 +489,7 @@ int main(void)
   
        /* All timing is finished by now, so writing a file cannot distort any measurement. */
     {
-        FILE *out = fopen("ladder.dat", "w");
+        FILE *out = fopen("compiled/stageB/ladder.dat", "w");
         if (out == NULL)
         {
             printf("cannot write ladder.dat (does the plots folder exist?)\n");

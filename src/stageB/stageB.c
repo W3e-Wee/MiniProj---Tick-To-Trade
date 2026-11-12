@@ -1,6 +1,6 @@
 #include "timing.h"
 #include <stdio.h>
-#include "parser.h"
+#include "../stageA_plus/parser.h"
 
 /* Same size as stageA */
 #ifndef SHORT_WIN

@@ -4,6 +4,7 @@ INC = -I provided
 STAGE0_DIR = compiled/stage0
 STAGEA_DIR = compiled/stageA
 STAGEAPLUS_DIR = compiled/stageA_plus
+STAGEB_DIR = compiled/stageB
 
 SUDO =
 # OS specfic checks to create the relevant folders
@@ -77,5 +78,53 @@ stageAplus:
 run-stageAplus: stageAplus
 	./$(STAGEAPLUS_DIR)/stageAplus
 
+# =====================================
+# Stage B build and execute commands
+# =====================================
+stageB: 
+	$(call MKDIR,$(STAGEB_DIR))
+	$(CC) -O2 $(INC) src/stageB/stageB.c src/stageA_plus/parser.c -o $(STAGEB_DIR)/stageB
+
+stageB-test:
+	$(CC) -O2 -DSHORT_WIN=3 -DLONG_WIN=5 -Ddata_file $(INC) src/stageB/stageB.c src/stageA_plus/parser.c -o $(STAGEB_DIR)/stageB_test
+
+stageB-stress:
+	$(CC) -O2 -Dstress_file $(INC) src/stageB/stageB.c src/stageA_plus/parser.c -o $(STAGEB_DIR)/stageB_stress
+
+run-stageB:
+	./$(STAGEB_DIR)/stageB
+
+ladder-test:
+	$(CC) -O2 -DSHORT_WIN=3 -DLONG_WIN=5 -Ddata_file $(INC) src/stageB/ladder.c src/stageA_plus/parser.c provided/trade_io.c -o $(STAGEB_DIR)/ladder_test
+
+ladder-stress:
+	$(CC) -O2 -Dstress_file $(INC) src/stageB/ladder.c src/stageA_plus/parser.c provided/trade_io.c -o $(STAGEB_DIR)/ladder_stress
+
+ladder-dev:
+	$(CC) -O2 $(INC) src/stageB/ladder.c src/stageA_plus/parser.c provided/trade_io.c -o $(STAGEB_DIR)/ladder_dev
+
+# each run- target rebuilds first, so it can never run an old compiled copy
+run-ladder-test: ladder-test
+	./$(STAGEB_DIR)/ladder_test
+
+run-ladder-stress: ladder-stress
+	./$(STAGEB_DIR)/ladder_stress
+
+run-ladder-dev: ladder-dev
+	./$(STAGEB_DIR)/ladder_dev
+
+# the full ladder: check on test20 first, then the stress_full.csv run
+run-ladder: ladder-test ladder-stress
+	@echo "--- test20 check: expect BUY at 7 and SELL at 10 for every version ---"
+	./$(STAGEB_DIR)/ladder_test
+
+	@echo "--- stress_full.csv ladder (takes a few minutes) ---"
+	./$(STAGEB_DIR)/ladder_stress
+
+plot-ladder:
+	gnuplot plots/plot_ladder
+	@echo "Plotted ladder to ladder.png"
+
+run-ladder-full: run-ladder plot-ladder
 
 
