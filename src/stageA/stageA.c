@@ -1,24 +1,17 @@
 #include <stdio.h>
 #include "trade_io.h"
+#include "constant.h"
+#include "trade_math.h"
 
-/* Defining for SMA */
-#ifndef SHORT_WIN
-#define SHORT_WIN 30
-#endif
-#ifndef LONG_WIN
-#define LONG_WIN 60
-#endif
 
-/*Define file paths*/
+/* Plot file paths */
 #ifdef data_file
-#define DATA_FILE "data/Group05/test20.csv"
 #define PLOT_FILE "compiled/stageA/signals_test.dat"
 #else
-#define DATA_FILE "data/Group05/dev_1M.csv"
 #define PLOT_FILE "compiled/stageA/signals.dat"
 #endif
 
-/*Define plot start and end*/
+/* Plot specfic constants */
 #define PLOT_START 60
 #define PLOT_END 2059
 
@@ -69,9 +62,7 @@ int main(void)
         double q = trade_qty();
 
         /* VWAP */
-        sum_pq += p * q;
-        sum_q += q;
-        vwap = sum_pq / sum_q;
+        vwap = parse_vwap(p, q, sum_pq, sum_q);
 
         /*Compute OHLC*/
         long long sec = trade_time() / 1000000;
@@ -121,8 +112,6 @@ int main(void)
             }
             sma_long = sum / LONG_WIN;
         }
-        /*printf("%d %.8f %.8f\n", count, sma_short, sma_long);  */
-        /* temp check */
 
         /* Adding BUY SELL Signals*/
         trade_signal = 0;

@@ -1,42 +1,25 @@
-
-#include "timing.h"
 #include <stdio.h>
 #include <math.h>
-#include "parser.h"
+// Provided
+#include "timing.h"
 #include "trade_io.h"
+// Self made
+#include "parser.h"
+#include "trade.h"
+#include "constant.h"
+#include "stage0_helper.h"
+#include "trade_math.h"
 
-/* Same windows as stageA / stageB */
-#ifndef SHORT_WIN
-#define SHORT_WIN 30
-#endif
-#ifndef LONG_WIN
-#define LONG_WIN 60
-#endif
-
+/* File specifc constants */
 #if defined(data_file)
-#define DATA_FILE "data/Group05/test20.csv"
 #define RUNS 1 /* test20 is only a correctness check, no timing needed */
 #elif defined(stress_file)
-#define DATA_FILE "data/stress_full.csv"
 #define RUNS 5
 #else
-#define DATA_FILE "data/Group05/dev_1M.csv"
 #define RUNS 5
 #endif
 
 #define VERSIONS 5
-#define MAX_TRADES 9000000 /* stress_full.csv has 8,928,944 trades */
-#define TOLERANCE 0.000001 /* a difference smaller than this counts as zero */
-
-/* one trade, same struct as stageB (only V4 uses it) */
-typedef struct
-{
-    long long ts_us;
-    double price;
-    double qty;
-    long long price_fx; /* price x 100 as a whole number */
-    int is_buy;
-} Trade;
 
 static Trade trades[MAX_TRADES];
 static int trades_read = 0; /* every version sets this, used for ns per trade */
@@ -299,8 +282,6 @@ int run_v3(int *buys, int *sells, double *vwap_out)
     }
     while (fast_parser(fp, &ts, &p, &q, &is_buy))
     {
-        sum_pq += p * q;
-        sum_q += q;
 
         p_fx = (long long)(p * 100 + 0.5); /* x100 makes it whole, +0.5 rounds it correctly */
         slot_s = count % SHORT_WIN;
@@ -324,7 +305,7 @@ int run_v3(int *buys, int *sells, double *vwap_out)
     fclose(fp);
 
     trades_read = count;
-    *vwap_out = sum_pq / sum_q;
+    *vwap_out = parse_vwap(p, q, sum_pq, sum_q);
     return 1;
 }
 
@@ -396,44 +377,19 @@ int run_v4(int *buys, int *sells, double *vwap_out)
 /* runs one version by number (0 to 4); returns 0 if the file is missing */
 int run_version(int which, int *buys, int *sells, double *vwap_out)
 {
-    if (which == 0)
+    switch (which)
     {
-        return run_v0(buys, sells, vwap_out);
+        case 0:
+            return run_v0(buys, sells, vwap_out);
+        case 1:
+            return run_v1(buys, sells, vwap_out);
+        case 2:
+            return run_v2(buys, sells, vwap_out);
+        case 3:
+            return run_v3(buys, sells, vwap_out);
+        default:
+            run_v4(buys, sells, vwap_out);
     }
-    if (which == 1)
-    {
-        return run_v1(buys, sells, vwap_out);
-    }
-    if (which == 2)
-    {
-        return run_v2(buys, sells, vwap_out);
-    }
-    if (which == 3)
-    {
-        return run_v3(buys, sells, vwap_out);
-    }
-    return run_v4(buys, sells, vwap_out);
-}
-
-/* sorts the times (smallest first) and returns the middle one (same as stageAplus) */
-uint64_t median(uint64_t t[], int n)
-{
-    int i, j;
-    uint64_t temp;
-
-    for (i = 0; i < n - 1; i++)
-    {
-        for (j = 0; j < n - 1 - i; j++)
-        {
-            if (t[j] > t[j + 1])
-            {
-                temp = t[j];
-                t[j] = t[j + 1];
-                t[j + 1] = temp;
-            }
-        }
-    }
-    return t[n / 2];
 }
 
 int main(void)

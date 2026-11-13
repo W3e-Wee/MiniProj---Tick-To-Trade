@@ -1,36 +1,9 @@
 #include "timing.h"
 #include <stdio.h>
 #include "parser.h"
-
-/* Same size as stageA */
-#ifndef SHORT_WIN
-#define SHORT_WIN 30
-#endif
-#ifndef LONG_WIN
-#define LONG_WIN 60
-#endif
-
-#if defined(data_file)
-#define DATA_FILE "data/Group05/test20.csv"
-#elif defined(stress_file)
-#define DATA_FILE "data/stress_full.csv"
-#else
-#define DATA_FILE "data/Group05/dev_1M.csv"
-#endif
-
-#define MAX_TRADES 9000000 /* stress_full.csv has 8,928,944 trades */
-#define TOLERANCE 0.000001   /* a difference smaller than this counts as zero */
-
-
-/* ---- STEP 1: one trade, and the big shelf that holds all of them ---- */
-typedef struct
-{
-    long long ts_us; /* time in microseconds */
-    double price;
-    double qty;
-    long long price_fx; /* the same price as a whole number: price x PRICE_K */
-    int is_buy; /* 1 = buy, 0 = sell */
-} Trade;
+#include "constant.h"
+#include "trade.h"
+#include "trade_math.h"
 
 static Trade trades[MAX_TRADES]; /* global, so it lives outside the stack */
 static int n_trades = 0;         /* how many shelf spots are really used */
@@ -75,66 +48,35 @@ double vwap(void)
     return sum_pq / sum_q;
 }
 
-int check_signal(double d_prev, double d)
-{
-    if (d_prev >= 0 && d < 0)
-    {
-        return -1; /* SELL */
-    }
-    else if (d_prev <= 0 && d > 0)
-    {
-        return 1; /* BUY */
-    }
-    return 0;
-}
-
 /* ---- STEP 2a: SMA the slow way (re-add the whole window every trade) ---- */
 void signals_naive(int *buys, int *sells)
 {
-    double sum_short, sum_long, d, d_prev = 0.0;
-    int i, k, sig;
+    /* SMA values*/
+    double sma_short = 0.0, sma_long = 0.0;
+    int i = 0;
+
+    /* Signal values */
+    double d, d_prev = 0.0;
 
     *buys = 0;
     *sells = 0;
+
     for (i = LONG_WIN - 1; i < n_trades; i++)
     {
-        sum_short = 0.0;
-        sum_long = 0.0;
-        for (k = 0; k < SHORT_WIN; k++)
-        {
-            sum_short += trades[i - k].price;
-        }
-        for (k = 0; k < LONG_WIN; k++)
-        {
-            sum_long += trades[i - k].price;
-        }
+        /* Calculate the SMA naively */
+        sma_short = naive_sma_dble(trades, SHORT_WIN, i);
+        sma_long = naive_sma_dble(trades, LONG_WIN, i);
 
-        d = sum_short / SHORT_WIN - sum_long / LONG_WIN;
-        if (d > -TOLERANCE && d < TOLERANCE)
-        {
-            d = 0.0;
-        }
+        /* Get BUY/ SELL signal */
+        d = sma_short - sma_long;
+
+        /* Adjust signal to 0 if close to TOLERANCE */
+        d = (d > -TOLERANCE && d < TOLERANCE) ? 0.0 : d;
 
         if (i > LONG_WIN - 1)
-        {
-            sig = check_signal(d_prev, d);
-            if (sig == 1)
-            {
-                (*buys)++;
+            check_signal(d_prev, d, &buys, &sells);
 
-/*runs test20 if datafile not defined; prints for test 20 instead of 1m or stess*/                
-#ifdef data_file
-                printf("BUY at %d\n", i + 1);
-#endif
-            }
-            else if (sig == -1)
-            {
-                (*sells)++;
-#ifdef data_file
-                printf("SELL at %d\n", i + 1);
-#endif
-            }
-        }
+        /* Set new previous signal value */
         d_prev = d;
     }
 }
@@ -142,8 +84,9 @@ void signals_naive(int *buys, int *sells)
 /* ---- STEP 2b: SMA the quick way (keep the window sums, slide by one) ---- */
 void signals_running(int *buys, int *sells)
 {
-    double sum_short = 0.0, sum_long = 0.0, d, d_prev = 0.0;
-    int i, sig;
+    double sum_short = 0.0, sum_long = 0.0,
+           d, d_prev = 0.0;
+    int i;
 
     *buys = 0;
     *sells = 0;
@@ -172,15 +115,9 @@ void signals_running(int *buys, int *sells)
             d = 0.0;
         }
 
-        sig = check_signal(d_prev, d);
-        if (sig == 1)
-        {
-            (*buys)++;
-        }
-        else if (sig == -1)
-        {
-            (*sells)++;
-        }
+        /* Update BUY/ SELL signal */
+        check_signal(d_prev, d, &buys, &sells);
+
         d_prev = d;
     }
 }
@@ -188,38 +125,29 @@ void signals_running(int *buys, int *sells)
 /* ---- STEP 3: the same two SMA methods, on the whole-number prices ---- */
 void signals_naive_fixed(int *buys, int *sells)
 {
-    long long sum_short, sum_long, d, d_prev = 0;
-    int i, k, sig;
+    long long sma_short, sma_long, d, d_prev = 0;
+    int i = 0, k = 0;
+    int sig;
 
     *buys = 0;
     *sells = 0;
     for (i = LONG_WIN - 1; i < n_trades; i++)
     {
-        sum_short = 0;
-        sum_long = 0;
-        for (k = 0; k < SHORT_WIN; k++)
-        {
-            sum_short += trades[i - k].price_fx;
-        }
-        for (k = 0; k < LONG_WIN; k++)
-        {
-            sum_long += trades[i - k].price_fx;
-        }
+        /* Compute SMA values for SHORT & LONG window */
+        sma_short = 0;
+        sma_long = 0;
 
-        d = sum_short * LONG_WIN - sum_long * SHORT_WIN;
+        sma_short = dble_naive_sma(trades, SHORT_WIN, i);
+        sma_long = fixed_naive_sma(trades, LONG_WIN, i);
+
+        // Update BUY/SELL signal
+        d = sma_short - sma_long;
 
         if (i > LONG_WIN - 1)
         {
-            sig = check_signal(d_prev, d);
-            if (sig == 1)
-            {
-                (*buys)++;
-            }
-            else if (sig == -1)
-            {
-                (*sells)++;
-            }
+            check_signal(d_prev, d, &buys, &sells);
         }
+
         d_prev = d;
     }
 }
@@ -248,15 +176,7 @@ void signals_running_fixed(int *buys, int *sells)
 
         d = sum_short * LONG_WIN - sum_long * SHORT_WIN;
 
-        sig = check_signal(d_prev, d);
-        if (sig == 1)
-        {
-            (*buys)++;
-        }
-        else if (sig == -1)
-        {
-            (*sells)++;
-        }
+        check_signal(d_prev, d, &buys, &sells);
         d_prev = d;
     }
 }
@@ -285,10 +205,10 @@ int main(void)
     signals_running(&buys_run, &sells_run);
     t4 = now_ns();
 
-    signals_naive_fixed(&buys_nf, &sells_nf);
+    dble_running_sma(trades, n_trades, &buys_nf, &sells_nf);
     t5 = now_ns();
 
-    signals_running_fixed(&buys_rf, &sells_rf);
+    fixed_running_sma(trades, n_trades, &buys_rf, &sells_rf);
     t6 = now_ns();
 
     /* print every result: if nothing uses a result, -O2 may delete the loop (like Stage 0) */
