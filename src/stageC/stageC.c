@@ -4,6 +4,7 @@
 #include "parser.h"
 #ifdef show_signals
 #include "led.h" /* LED helper from the brief */
+#include "trade.h"
 #endif
 
 /* ---- settings: change them with -D when compiling ---- */
@@ -31,16 +32,6 @@
 #endif
 
 #define MAX_TRADES 9000000 /* NOT used for the array any more: only to show what the old fixed array reserved */
-
-/* ---- one trade (same struct as stageB, so the memory comparison is fair) ---- */
-typedef struct
-{
-    long long ts_us; /* time in microseconds */
-    double price;
-    double qty;
-    long long price_fx; /* price x 100 as a whole number (not used by the replay yet) */
-    int is_buy;         /* 1 = buy, 0 = sell */
-} Trade;
 
 Trade *trades = NULL;    /* the shelf, built by malloc */
 static int n_trades = 0; /* how many shelf spots are really used */

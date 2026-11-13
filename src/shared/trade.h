@@ -8,4 +8,13 @@ typedef struct
     long long price_fx; /* price x 100 as a whole number */
     int is_buy;
 } Trade;
+
+typedef struct 
+{
+    double open;
+    double high;
+    double low;
+    double close;
+} OhlcBar;
+
 #endif

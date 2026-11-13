@@ -1,13 +1,9 @@
-#include <stdio.h>
-
-#include "parser.h"
-#include "trade.h"
-#include "constant.h"
-#include "signal.h"
-
+#include "../shared/trade.h"
+#include "../shared/constant.h"
+#include "../shared/signal.h"
 
 /**
- * Calculates VWAP
+ * Calculates VWAP. Specific to `next_trade()` function.
  *
  * @param price Current trade price
  * @param qty Quantity of trade
@@ -69,9 +65,9 @@ long long fixed_naive_sma(const Trade trades[], int window, int i)
 
 /**
  * Uses running SMA method to get the SMA and BUY/SELL signal.
- * 
+ *
  * @param trades[] An array of `Trade` structs
- * @param n_trades Size of `trades[]` 
+ * @param n_trades Size of `trades[]`
  * @param buys Pointer to count BUY signals
  * @param sells Pointer to count SELL signals
  */
@@ -103,7 +99,7 @@ void dble_running_sma(const Trade trades[], int n_trades, int *buys, int *sells)
 
         /* Get BUY/SELL signal */
         d = sum_short / SHORT_WIN - sum_long / LONG_WIN;
-        
+
         /* Adjust signal to o if close to TOLERANCE */
         d = (d > -TOLERANCE && d < TOLERANCE) ? 0.0 : d;
 
@@ -111,19 +107,19 @@ void dble_running_sma(const Trade trades[], int n_trades, int *buys, int *sells)
         d_prev = d;
     }
 
-    check_signal(d_prev, d, &buys, &sells);
+    check_signal(d_prev, d, buys, sells);
 
     return;
 }
 
 /**
  * Same method as `dble_running_sma`. But uses fixed point integer instead of floating point value
- * 
+ *
  * @param trades[] An array of `TRADE` structs
  * @param n_trades Size of `trades[]`
  * @param buys Pointer to count BUY signals
  * @param sells Pointer to count SELL signals
- * 
+ *
  */
 void fixed_running_sma(const Trade trades[], int n_trades, int *buys, int *sells)
 {
@@ -153,7 +149,7 @@ void fixed_running_sma(const Trade trades[], int n_trades, int *buys, int *sells
 
         /* Get BUY/SELL signal */
         d = sum_short / SHORT_WIN - sum_long / LONG_WIN;
-        
+
         /* Adjust signal to o if close to TOLERANCE */
         d = (d > -TOLERANCE && d < TOLERANCE) ? 0.0 : d;
 
@@ -161,7 +157,7 @@ void fixed_running_sma(const Trade trades[], int n_trades, int *buys, int *sells
         d_prev = d;
     }
 
-    check_signal(d_prev, d, &buys, &sells);
+    check_signal(d_prev, d, buys, sells);
 
     return;
 }

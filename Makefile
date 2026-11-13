@@ -53,11 +53,11 @@ loop-o3:
 # ===================================
 stageA:
 	$(call MKDIR,$(STAGEA_DIR))
-	$(CC) -O2 $(INC) src/stageA/stageA.c provided/trade_io.c -o $(STAGEA_DIR)/stageA
+	$(CC) -O2 $(INC)  src/stageA/stageA.c provided/trade_io.c src/shared/trade_math.c src/shared/signal.c -o $(STAGEA_DIR)/stageA
 
 stageA-test:
 	$(call MKDIR,$(STAGEA_DIR))
-	$(CC) -DSHORT_WIN=3 -DLONG_WIN=5 -Ddata_file $(INC) src/stageA/stageA.c provided/trade_io.c -o $(STAGEA_DIR)/stageA_test
+	$(CC) -DSHORT_WIN=3 -DLONG_WIN=5 -Ddata_file $(INC) src/stageA/stageA.c provided/trade_io.c src/shared/trade_math.c src/shared/signal.c -o $(STAGEA_DIR)/stageA_test
 
 run-stageA: stageA
 	$(call MKDIR,$(STAGEA_DIR))
