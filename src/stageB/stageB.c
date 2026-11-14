@@ -1,9 +1,9 @@
 #include "timing.h"
 #include <stdio.h>
-#include "parser.h"
 #include "constant.h"
 #include "trade.h"
 #include "trade_math.h"
+#include "../stageA_plus/parser.h"
 
 static Trade trades[MAX_TRADES]; /* global, so it lives outside the stack */
 static int n_trades = 0;         /* how many shelf spots are really used */

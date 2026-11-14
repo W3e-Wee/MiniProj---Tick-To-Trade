@@ -4,6 +4,17 @@ INC = -I provided
 STAGE0_DIR = compiled/stage0
 STAGEA_DIR = compiled/stageA
 STAGEAPLUS_DIR = compiled/stageA_plus
+STAGEB_DIR = compiled/stageB
+STAGEC_DIR = compiled/stageC
+STAGECRIVAL_DIR = compiled/stageC_rival
+
+#rival
+RIVAL_SRC = src/stageCrival/rival.c src/stageCrival/v0malloc.c src/stageCrival/vfastestmalloc.c src/stageCrival/trades.c src/stageA_plus/parser.c provided/trade_io.c
+V0_SRC = src/stageCrival/v0malloc.c src/stageCrival/rival.c src/stageCrival/trades.c src/stageA_plus/parser.c provided/trade_io.c
+FAST_SRC = src/stageCrival/vfastestmalloc.c src/stageCrival/rival.c src/stageCrival/trades.c src/stageA_plus/parser.c
+RACE_SPEED = 10000
+RACE_LED = #for the rpi
+.PHONY: rival rival-test rival-stress run-rival run-rival-test run-rival-stress plot-rival demov0 demofast run-demov0 run-demofast
 
 SUDO =
 # OS specfic checks to create the relevant folders
@@ -77,5 +88,116 @@ stageAplus:
 run-stageAplus: stageAplus
 	./$(STAGEAPLUS_DIR)/stageAplus
 
+# =====================================
+# Stage B build and execute commands
+# =====================================
+stageB: 
+	$(call MKDIR,$(STAGEB_DIR))
+	$(CC) -O2 $(INC) src/stageB/stageB.c src/stageA_plus/parser.c -o $(STAGEB_DIR)/stageB
 
+stageB-test:
+	$(CC) -O2 -DSHORT_WIN=3 -DLONG_WIN=5 -Ddata_file $(INC) src/stageB/stageB.c src/stageA_plus/parser.c -o $(STAGEB_DIR)/stageB_test
 
+stageB-stress:
+	$(CC) -O2 -Dstress_file $(INC) src/stageB/stageB.c src/stageA_plus/parser.c -o $(STAGEB_DIR)/stageB_stress
+
+run-stageB:
+	./$(STAGEB_DIR)/stageB
+
+ladder-test:
+	$(CC) -O2 -DSHORT_WIN=3 -DLONG_WIN=5 -Ddata_file $(INC) src/stageB/ladder.c src/stageA_plus/parser.c provided/trade_io.c -o $(STAGEB_DIR)/ladder_test
+
+ladder-stress:
+	$(CC) -O2 -Dstress_file $(INC) src/stageB/ladder.c src/stageA_plus/parser.c provided/trade_io.c -o $(STAGEB_DIR)/ladder_stress
+
+ladder-dev:
+	$(CC) -O2 $(INC) src/stageB/ladder.c src/stageA_plus/parser.c provided/trade_io.c -o $(STAGEB_DIR)/ladder_dev
+
+# each run- target rebuilds first, so it can never run an old compiled copy
+run-ladder-test: ladder-test
+	./$(STAGEB_DIR)/ladder_test
+
+run-ladder-stress: ladder-stress
+	./$(STAGEB_DIR)/ladder_stress
+
+run-ladder-dev: ladder-dev
+	./$(STAGEB_DIR)/ladder_dev
+
+# the full ladder: check on test20 first, then the stress_full.csv run
+run-ladder: ladder-test ladder-stress
+	@echo "--- test20 check: expect BUY at 7 and SELL at 10 for every version ---"
+	./$(STAGEB_DIR)/ladder_test
+
+	@echo "--- stress_full.csv ladder (takes a few minutes) ---"
+	./$(STAGEB_DIR)/ladder_stress
+
+plot-ladder:
+	gnuplot plots/plot_ladder
+	@echo "Plotted ladder to ladder.png"
+
+run-ladder-full: 
+	run-ladder plot-ladder
+
+# =====================================
+# Stage C build and execute commands
+# =====================================
+stageC: 
+	$(call MKDIR,$(STAGEC_DIR))
+	$(CC) -O2 $(INC) src/stageC/stageC.c src/stageA_plus/parser.c -o $(STAGEC_DIR)/stageC
+
+stageC-test:
+	$(CC) -O2 -DSHORT_WIN=3 -DLONG_WIN=5 -Ddata_file $(INC) src/stageC/stageC.c src/stageA_plus/parser.c -o $(STAGEC_DIR)/stageC_test
+
+stageC-stress:
+	$(CC) -O2 -Dstress_file $(INC) src/stageC/stageC.c src/stageA_plus/parser.c -o $(STAGEC_DIR)/stageC_stress
+
+run-stageC:
+	./$(STAGEC_DIR)/stageC
+
+run-stageC-test: stageC-test
+	./$(STAGEC_DIR)/stageC_test
+
+run-stageC-stress: stageC-stress
+	./$(STAGEC_DIR)/stageC_stress
+
+# ===============================================
+# Stage C Rival Bot build and execute commands
+# ===============================================
+rival-test:
+	$(call MKDIR,$(STAGECRIVAL_DIR))
+	$(CC) -O2 -DSHORT_WIN=3 -DLONG_WIN=5 -Ddata_file $(INC) $(RIVAL_SRC) -o $(STAGECRIVAL_DIR)/rival_test
+
+rival-stress:
+	$(CC) -O2 -Dstress_file $(INC) $(RIVAL_SRC) -o $(STAGECRIVAL_DIR)/rival_stress
+
+rival: rival-test rival-stress
+
+run-rival-test: rival-test
+	./$(STAGECRIVAL_DIR)/rival_test
+
+run-rival-stress: rival-stress
+	./$(STAGECRIVAL_DIR)/rival_stress
+
+run-rival: rival-test rival-stress
+	@echo "--- test20 check: both bots must show BUY at 7 and SELL at 10 ---"
+	./$(STAGECRIVAL_DIR)/rival_test
+	@echo "--- stress_full.csv rival sweep ---"
+	./$(STAGECRIVAL_DIR)/rival_stress
+	@echo "--- plotting rival sweep ---"
+	gnuplot plots/plot_rival
+
+plot-rival:
+	gnuplot plots/plot_rival
+
+#demo
+demov0:
+	$(CC) -O2 -Dstress_file -Ddemo_v0 -DSPEED=$(RACE_SPEED) $(INC) $(V0_SRC) -o $(STAGECRIVAL_DIR)/demov0
+
+demofast:
+	$(CC) -O2 -Dstress_file -Ddemo_fast -DSPEED=$(RACE_SPEED) $(RACE_LED) $(INC) $(FAST_SRC) -o $(STAGECRIVAL_DIR)/demofast
+
+run-demov0: demov0
+	./$(STAGECRIVAL_DIR)/demov0
+
+run-demofast: demofast
+	$(SUDO) ./$(STAGECRIVAL_DIR)/demofast

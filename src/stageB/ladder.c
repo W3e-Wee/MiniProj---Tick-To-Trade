@@ -4,7 +4,7 @@
 #include "timing.h"
 #include "trade_io.h"
 // Self made
-#include "parser.h"
+#include "../stageA_plus/parser.h"
 #include "trade.h"
 #include "constant.h"
 #include "stage0_helper.h"
@@ -378,7 +378,8 @@ int run_v4(int *buys, int *sells, double *vwap_out)
 int run_version(int which, int *buys, int *sells, double *vwap_out)
 {
     switch (which)
-    {
+        switch (which)
+        {
         case 0:
             return run_v0(buys, sells, vwap_out);
         case 1:
@@ -389,7 +390,7 @@ int run_version(int which, int *buys, int *sells, double *vwap_out)
             return run_v3(buys, sells, vwap_out);
         default:
             run_v4(buys, sells, vwap_out);
-    }
+        }
 }
 
 int main(void)
@@ -439,13 +440,12 @@ int main(void)
                buys[which], sells[which], same ? "same as V0" : "DIFFERENT");
     }
 
-
-/* only for the stress build, so test20/dev numbers never overwrite it. */   
+/* only for the stress build, so test20/dev numbers never overwrite it. */
 #ifdef stress_file
-  
-       /* All timing is finished by now, so writing a file cannot distort any measurement. */
+
+    /* All timing is finished by now, so writing a file cannot distort any measurement. */
     {
-        FILE *out = fopen("ladder.dat", "w");
+        FILE *out = fopen("compiled/stageB/ladder.dat", "w");
         if (out == NULL)
         {
             printf("cannot write ladder.dat (does the plots folder exist?)\n");
