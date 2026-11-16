@@ -2,11 +2,11 @@
 #include <stdio.h>
 #include <stdlib.h> /* malloc and free */
 #include "../stageA_plus/parser.h"
+#include "trade.h"
+
 #ifdef show_signals
 #include "led.h" /* LED helper from the brief */
-#include "trade.h"
 #endif
-
 /* ---- settings: change them with -D when compiling ---- */
 #ifndef SPEED
 #define SPEED 1000 /* 1 = real time, 100 = 100 times faster, 1000 = 1000 times faster */
@@ -145,7 +145,7 @@ int check_trade(int i)
     if (i + 1 >= LONG_WIN) /* both windows are full */
     {
         d = sum_short * LONG_WIN - sum_long * SHORT_WIN; /* same sign as short SMA - long SMA, no division */
-        if (i + 1 > LONG_WIN) /* we need a previous d to compare with */
+        if (i + 1 > LONG_WIN)                            /* we need a previous d to compare with */
         {
             if (d_prev >= 0 && d < 0)
             {
@@ -170,7 +170,7 @@ int main(void)
     long long due, elapsed; /* nanoseconds: when a trade should come out / how long we have run */
     long long lag, max_lag = 0;
     long long done, latency, lat_sum = 0, lat_max = 0; /* nanoseconds: processing time of each trade */
-    long long next_report = 10000000000LL; /* print a progress line every 10 seconds */
+    long long next_report = 10000000000LL;             /* print a progress line every 10 seconds */
     uint64_t t_a, t_b;
     int i, k, sig, buys = 0, sells = 0, released = 0, out_of_order = 0;
 

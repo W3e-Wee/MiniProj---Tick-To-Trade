@@ -3,7 +3,6 @@
 #include "trade_io.h"
 #include "../shared/constant.h"
 #include "../shared/trade.h"
-#include "../shared/trade_math.h"
 
 /* Plot specific constans */
 #ifdef data_file
@@ -97,7 +96,10 @@ int main(void)
         double p = trade_price();
         double q = trade_qty();
 
-        vwap = parse_vwap(p, q, sum_pq, sum_q);
+        sum_pq += p * q;
+        sum_q += q;
+
+        vwap = sum_pq / sum_q;
 
         /*Compute OHLC*/
         compute_ohlc(&bar, &cur_sec, &bar_trades, p);

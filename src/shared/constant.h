@@ -18,6 +18,7 @@
 #define DATA_FILE "data/Group05/dev_1M.csv"
 #endif
 
+/* Ladder Testing */
 #define VERSIONS 5
 #define MAX_TRADES 9000000 /* stress_full.csv has 8,928,944 trades */
 #define TOLERANCE 0.000001 /* a difference smaller than this counts as zero */

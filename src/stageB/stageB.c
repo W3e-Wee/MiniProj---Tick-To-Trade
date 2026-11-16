@@ -1,8 +1,10 @@
-#include "timing.h"
 #include <stdio.h>
-#include "constant.h"
-#include "trade.h"
-#include "trade_math.h"
+// Provided
+#include "timing.h"
+// Self-made
+#include "../shared/constant.h"
+#include "../shared/trade.h"
+#include "../shared/signal.h"
 #include "../stageA_plus/parser.h"
 
 static Trade trades[MAX_TRADES]; /* global, so it lives outside the stack */
@@ -52,8 +54,9 @@ double vwap(void)
 void signals_naive(int *buys, int *sells)
 {
     /* SMA values*/
-    double sma_short = 0.0, sma_long = 0.0;
+    double sum_short = 0.0, sum_long = 0.0;
     int i = 0;
+    int k;
 
     /* Signal values */
     double d, d_prev = 0.0;
@@ -64,17 +67,25 @@ void signals_naive(int *buys, int *sells)
     for (i = LONG_WIN - 1; i < n_trades; i++)
     {
         /* Calculate the SMA naively */
-        sma_short = naive_sma_dble(trades, SHORT_WIN, i);
-        sma_long = naive_sma_dble(trades, LONG_WIN, i);
+        sum_short = 0.0;
+        sum_long = 0.0;
+        for (k = 0; k < SHORT_WIN; k++)
+        {
+            sum_short += trades[i - k].price;
+        }
+        for (k = 0; k < LONG_WIN; k++)
+        {
+            sum_long += trades[i - k].price;
+        }
 
         /* Get BUY/ SELL signal */
-        d = sma_short - sma_long;
+        d = sum_short / SHORT_WIN - sum_long / LONG_WIN;
 
         /* Adjust signal to 0 if close to TOLERANCE */
         d = (d > -TOLERANCE && d < TOLERANCE) ? 0.0 : d;
 
         if (i > LONG_WIN - 1)
-            check_signal(d_prev, d, &buys, &sells);
+            check_signal(d_prev, d, buys, sells);
 
         /* Set new previous signal value */
         d_prev = d;
@@ -116,7 +127,7 @@ void signals_running(int *buys, int *sells)
         }
 
         /* Update BUY/ SELL signal */
-        check_signal(d_prev, d, &buys, &sells);
+        check_signal(d_prev, d, buys, sells);
 
         d_prev = d;
     }
@@ -125,7 +136,7 @@ void signals_running(int *buys, int *sells)
 /* ---- STEP 3: the same two SMA methods, on the whole-number prices ---- */
 void signals_naive_fixed(int *buys, int *sells)
 {
-    long long sma_short, sma_long, d, d_prev = 0;
+    long long sum_short, sum_long, d, d_prev = 0;
     int i = 0, k = 0;
     int sig;
 
@@ -134,18 +145,23 @@ void signals_naive_fixed(int *buys, int *sells)
     for (i = LONG_WIN - 1; i < n_trades; i++)
     {
         /* Compute SMA values for SHORT & LONG window */
-        sma_short = 0;
-        sma_long = 0;
-
-        sma_short = dble_naive_sma(trades, SHORT_WIN, i);
-        sma_long = fixed_naive_sma(trades, LONG_WIN, i);
+        sum_short = 0;
+        sum_long = 0;
+        for (k = 0; k < SHORT_WIN; k++)
+        {
+            sum_short += trades[i - k].price_fx;
+        }
+        for (k = 0; k < LONG_WIN; k++)
+        {
+            sum_long += trades[i - k].price_fx;
+        }
 
         // Update BUY/SELL signal
-        d = sma_short - sma_long;
+        d = sum_short * LONG_WIN - sum_long * SHORT_WIN;
 
         if (i > LONG_WIN - 1)
         {
-            check_signal(d_prev, d, &buys, &sells);
+            check_signal(d_prev, d, buys, sells);
         }
 
         d_prev = d;
@@ -176,7 +192,7 @@ void signals_running_fixed(int *buys, int *sells)
 
         d = sum_short * LONG_WIN - sum_long * SHORT_WIN;
 
-        check_signal(d_prev, d, &buys, &sells);
+        check_signal(d_prev, d, buys, sells);
         d_prev = d;
     }
 }
@@ -205,10 +221,10 @@ int main(void)
     signals_running(&buys_run, &sells_run);
     t4 = now_ns();
 
-    dble_running_sma(trades, n_trades, &buys_nf, &sells_nf);
+    signals_naive_fixed(&buys_nf, &sells_nf);
     t5 = now_ns();
 
-    fixed_running_sma(trades, n_trades, &buys_rf, &sells_rf);
+    signals_running_fixed(&buys_rf, &sells_rf);
     t6 = now_ns();
 
     /* print every result: if nothing uses a result, -O2 may delete the loop (like Stage 0) */
