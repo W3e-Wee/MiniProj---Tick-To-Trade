@@ -32,9 +32,20 @@ const VersionRun versions[VERSIONS] = {
     {"V3 + fixed-point prices", run_v3},
     {"V4 + processing from memory", run_v4},
 };
-
 static Trade trades[MAX_TRADES];
 
+/*********************************/
+/* Local Helper Functions        */
+/*********************************/
+
+/**
+ * Based on `sig` value to add to BUY/SELL count.
+ *
+ * @param sig The SMA signal of the trade.
+ * @param trade_no Trade Id.
+ * @param res A `Result` struct that tracks BUY/SELL count.
+ *
+ */
 static void tally(int sig, int trade_no, Result *res)
 {
     (void)trade_no; /* only used in the test20 build; this stops an "unused" warning otherwise */
@@ -51,7 +62,7 @@ static void tally(int sig, int trade_no, Result *res)
 }
 
 /**
- * Rounding double difference to become 0
+ * Rounding double difference to become 0.
  *
  * @param d The double difference to round off
  *
@@ -67,7 +78,7 @@ static double snap_to_zero(double d)
 }
 
 /**
- * Converts double price to fixed point integer
+ * Converts double to fixed point price.
  *
  * @param p The trade price in `double`
  *
@@ -78,7 +89,40 @@ static inline long long to_fx(double p)
     return (long long)(p * PRICE_SCALE * 0.5);
 }
 
-/* ---- V0 = Stage A: helper library (sscanf), one pass, double prices, re-add the whole window ---- */
+static inline void window_buf(double buf[], int slot, double *sum, double p)
+{
+    *sum = *sum + p - buf[slot];
+    buf[slot] = p;
+}
+
+/**
+ * Keeps a circular fixed sized array.
+ * Keeps the most recent prices and replaces the oldest
+ *
+ * @param buf[] The buffer array
+ * @param slot The slot that is moving
+ * @param sum The SMA sum
+ * @param p The trade prices
+ */
+static inline void fxed_window_buf(long long buf[], int slot, long long *sum, long long p)
+{
+    *sum = *sum + p - buf[slot];
+    buf[slot] = p;
+}
+
+/*********************************/
+/* Versions for each rung        */
+/*********************************/
+
+/**
+ * `V0`:
+ * Uses Stage A helper library (sscanf), runs in one pass and re-adds whole trade window to get SMA (naive)
+ *
+ * @param res A `Result` pointer that holds BUY/SELL, trade and VWAP count
+ *
+ * @return 1 - Successful run; 0 - Error occurred
+ *
+ */
 int run_v0(Result *res)
 {
     double short_prices[SHORT_WIN];
@@ -89,12 +133,17 @@ int run_v0(Result *res)
     int count = 0;
     int i;
 
+    /* Reset all values in struct to 0 */
     *res = (Result){0};
 
+    /* Open file and read it */
     if (!open_trades(DATA_FILE))
     {
+        printf("Error: Unable to read %s", DATA_FILE);
         return 0;
     }
+
+    /* Loop the file */
     while (next_trade())
     {
         p = trade_price();
@@ -102,6 +151,8 @@ int run_v0(Result *res)
         sum_pq += p * q;
         sum_q += q;
 
+        /* A circular buffer. Writes the newest trade
+        and replace the oldest */
         short_prices[count % SHORT_WIN] = p;
         long_prices[count % LONG_WIN] = p;
         count++;
@@ -134,12 +185,19 @@ int run_v0(Result *res)
     }
     close_trades();
 
+    /* Update trade count and vwap */
     res->trades_read = count;
     res->vwap = sum_pq / sum_q;
     return 1;
 }
 
-/* ---- V1 = V0 + our own fast parser (the ONLY change: how a line is read) ---- */
+/**
+ * `V1`: Uses own fast parser instead of helper library (sscanf) - Only change is how the line is read
+ *
+ * @param res A `Result` pointer that holds BUY/SELL, trade and VWAP value
+ *
+ * @return 1 - Successful run; 0 - Error occurred
+ */
 int run_v1(Result *res)
 {
     long long ts;
@@ -166,6 +224,8 @@ int run_v1(Result *res)
         sum_pq += p * q;
         sum_q += q;
 
+        /* Circular buffer, writes the most recent trade
+        and replace the oldest */
         short_prices[count % SHORT_WIN] = p;
         long_prices[count % LONG_WIN] = p;
         count++;
@@ -204,7 +264,13 @@ int run_v1(Result *res)
     return 1;
 }
 
-/* ---- V2 = V1 + running-sum SMA (the ONLY change: how the two averages are made) ---- */
+/**
+ * `V2`: V1 + running-sum SMA, instead of re-adding whole window (naive)
+ *
+ * @param res A `Result` pointer that holds BUY/SELL, trade and VWAP value
+ *
+ * @return 1 - Successful run; 0 - Error occurred
+ */
 int run_v2(Result *res)
 {
     long long ts;
@@ -215,7 +281,6 @@ int run_v2(Result *res)
     double sum_short = 0.0, sum_long = 0.0, d, d_prev = 0.0;
     double p, q;
     int count = 0;
-    int slot_s, slot_l;
 
     *res = (Result){0};
 
@@ -230,12 +295,10 @@ int run_v2(Result *res)
         sum_pq += p * q;
         sum_q += q;
 
-        slot_s = count % SHORT_WIN; /* the spot holding the oldest short price */
-        slot_l = count % LONG_WIN;
-        sum_short = sum_short + p - short_prices[slot_s]; /* add newest, take away oldest */
-        sum_long = sum_long + p - long_prices[slot_l];
-        short_prices[slot_s] = p; /* newest takes the oldest one's spot */
-        long_prices[slot_l] = p;
+        /* Circular buffer, writes the most recent trade
+        and replace the oldest */
+        window_buf(short_prices, count % SHORT_WIN, &sum_short, p);
+        window_buf(long_prices, count % LONG_WIN, &sum_long, p);
         count++;
 
         if (count >= LONG_WIN)
@@ -255,7 +318,13 @@ int run_v2(Result *res)
     return 1;
 }
 
-/* ---- V3 = V2 + fixed-point prices (the ONLY change: the SMA sums are long long, not double) ---- */
+/**
+ * `V3`: V2 + fixed-point prices, SMA calculation remains the same but uses `long long`
+ *
+ * @param res A `Result` pointer that holds BUY/SELL, trade and VWAP value
+ *
+ * @return 1 - Successful run; 0 - Error occurred
+ */
 int run_v3(Result *res)
 {
     long long ts;
@@ -266,7 +335,6 @@ int run_v3(Result *res)
     double sum_pq = 0.0, sum_q = 0.0;
     double p, q;
     int count = 0;
-    int slot_s, slot_l;
 
     *res = (Result){0};
 
@@ -281,23 +349,24 @@ int run_v3(Result *res)
     while (fast_parser(fp, &ts, &p, &q, &is_buy))
     {
 
-        p_fx = to_fx(p); /* x100 makes it whole, +0.5 rounds it correctly */
-        slot_s = count % SHORT_WIN;
-        slot_l = count % LONG_WIN;
-        sum_short = sum_short + p_fx - short_fx[slot_s];
-        sum_long = sum_long + p_fx - long_fx[slot_l];
-        short_fx[slot_s] = p_fx;
-        long_fx[slot_l] = p_fx;
+        p_fx = to_fx(p); /* Convert decimal to fixed point */
+
+        /* Circular buffer, keeps most recent and replace oldest */
+        fxed_window_buf(short_fx, count % SHORT_WIN, &sum_short, p_fx);
+        fxed_window_buf(long_fx, count % LONG_WIN, &sum_long, p_fx);
         count++;
 
-        sum_pq += p * q; /* add this */
-        sum_q += q;      /* add this */
+        sum_pq += p * q;
+        sum_q += q;
 
         if (count >= LONG_WIN)
         {
-            d = sum_short * LONG_WIN - sum_long * SHORT_WIN; /* same sign as short SMA - long SMA, no division */
+            /* Cross multiply gets exact value instead of division */
+            d = sum_short * LONG_WIN - sum_long * SHORT_WIN;
+
             if (count > LONG_WIN)
             {
+                /* Count total BUY/ SELL signal */
                 tally(CHECK_SIGNAL(d_prev, d), count, res);
             }
             d_prev = d;
@@ -308,10 +377,17 @@ int run_v3(Result *res)
 
     res->trades_read = count;
     res->vwap = sum_pq / sum_q;
+
     return 1;
 }
 
-/* ---- V4 = V3 + processing from memory (the ONLY change: load all trades first, then compute) ---- */
+/**
+ * `V4`: V3 + process from memory. (Trades loaded into a struct array before its computed).
+ *
+ * @param res A `Result` pointer that holds BUY/SELL, trade and VWAP count
+ *
+ * @return 1 - Successful run; 0 - Error occurred
+ */
 int run_v4(Result *res)
 {
     long long ts;
@@ -331,26 +407,26 @@ int run_v4(Result *res)
         return 0;
     }
 
-    /* step 1: read the whole file into the array */
+    /* Read the whole file into the array */
     while (n < MAX_TRADES && fast_parser(fp, &ts, &p, &q, &is_buy))
     {
         trades[n].ts_us = ts;
         trades[n].price = p;
         trades[n].qty = q;
-        trades[n].price_fx = to_fx(p);
+        trades[n].price_fx = to_fx(p); /* Convert decimal to fixed point */
         trades[n].is_buy = is_buy;
         n++;
     }
     fclose(fp);
 
-    /* step 2: VWAP from the array */
+    /* Compute VWAP from the array */
     for (i = 0; i < n; i++)
     {
         sum_pq += trades[i].price * trades[i].qty;
         sum_q += trades[i].qty;
     }
 
-    /* step 3: signals from the array, the price leaving a window is just trades[i - N] */
+    /* Get signals from the array, the price leaving a window is just trades[i - N] */
     for (i = 0; i < LONG_WIN; i++)
     {
         sum_long += trades[i].price_fx;

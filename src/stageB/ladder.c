@@ -41,7 +41,7 @@ int main(void)
         med[which] = median(times[which], RUNS);
     }
 
-    /* the table: speedup = time of V0 / time of version k */
+    /* Table: speedup = time of V0 / time of version k */
     printf("\ntrades = %d, VWAP (V0) = %.8f\n", res[0].trades_read, res[0].vwap);
     printf("%-36s %10s %9s %8s %6s %6s  %s\n", "Version", "Median(s)", "ns/trade", "Speedup", "BUY", "SELL", "Checksum");
     for (which = 0; which < VERSIONS; which++)

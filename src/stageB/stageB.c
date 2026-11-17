@@ -37,7 +37,7 @@ int load_trades(const char *path)
     return 1;
 }
 
-double vwap(void)
+static double vwap(void)
 {
     double sum_pq = 0.0, sum_q = 0.0;
     int i;
@@ -50,8 +50,14 @@ double vwap(void)
     return sum_pq / sum_q;
 }
 
-/* ---- STEP 2a: SMA the slow way (re-add the whole window every trade) ---- */
-void signals_naive(int *buys, int *sells)
+/**
+ * Calculate SMA by re-adding the whole window every trade (naive)
+ *
+ * @param buys Pointer to track BUY count
+ * @param sells Pointer to track SELL count
+ *
+ */
+static void signals_naive(int *buys, int *sells)
 {
     /* SMA values*/
     double sum_short = 0.0, sum_long = 0.0;
@@ -92,8 +98,13 @@ void signals_naive(int *buys, int *sells)
     }
 }
 
-/* ---- STEP 2b: SMA the quick way (keep the window sums, slide by one) ---- */
-void signals_running(int *buys, int *sells)
+/**
+ * Calculates SMA via a running sum instead of re-adding the whole trade window
+ *
+ * @param buys Pointer to track BUY count
+ * @param sells Pointer to track SELL count
+ */
+static void signals_running(int *buys, int *sells)
 {
     double sum_short = 0.0, sum_long = 0.0,
            d, d_prev = 0.0;
@@ -133,8 +144,13 @@ void signals_running(int *buys, int *sells)
     }
 }
 
-/* ---- STEP 3: the same two SMA methods, on the whole-number prices ---- */
-void signals_naive_fixed(int *buys, int *sells)
+/**
+ * Uses naive method but instead of a `double` type, uses fixed point integer `long long`
+ *
+ * @param buys Pointer to track BUY count
+ * @param sells Pointer to track SELL count
+ */
+static signals_naive_fixed(int *buys, int *sells)
 {
     long long sum_short, sum_long, d, d_prev = 0;
     int i = 0, k = 0;
@@ -168,7 +184,13 @@ void signals_naive_fixed(int *buys, int *sells)
     }
 }
 
-void signals_running_fixed(int *buys, int *sells)
+/**
+ * Uses running-sum method, uses `long long`
+ *
+ * @param buys Pointer to track BUY count
+ * @param sells Pointer to track SELL count
+ */
+static signals_running_fixed(int *buys, int *sells)
 {
     long long sum_short = 0, sum_long = 0, d, d_prev;
     int i, sig;
@@ -199,7 +221,7 @@ void signals_running_fixed(int *buys, int *sells)
 
 int main(void)
 {
-    uint64_t t0, t1, t2, t3, t4, t5, t6;
+    uint64_t t0, t1, t2, t3, t4, t5, t6; /* Timing for each function */
     int buys_naive, sells_naive, buys_run, sells_run;
     int buys_nf, sells_nf, buys_rf, sells_rf;
     double v;

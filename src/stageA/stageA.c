@@ -1,5 +1,4 @@
 #include <stdio.h>
-
 #include "trade_io.h"
 #include "../shared/constant.h"
 #include "../shared/trade.h"
