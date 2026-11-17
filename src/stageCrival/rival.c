@@ -272,7 +272,7 @@ static int compare(void)
 
     /* the sweep: R from 0.1 us to 100 us */
 #ifdef stress_file
-    out = fopen("rival.dat", "w");
+    out = fopen("compiled/stageC_rival/rival.dat", "w");
     if (out == NULL)
     {
         printf("cannot write plots/rival.dat (does the plots folder exist?)\n");
