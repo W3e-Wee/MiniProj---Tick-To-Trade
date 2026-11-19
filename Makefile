@@ -239,3 +239,21 @@ run-asm: asm-bench
 asm-listing:
 	$(CC) -O3 -S $(INC) -I src src/stretch/vwap.c -o compiled/vwap_O3.s
 endif
+
+# STRETCH GOALS: struct-of-arrays and percentile latency
+.PHONY: soa-test soa percentile-test percentile run-soa run-percentile
+soa-test:
+	$(CC) -O2 -DSHORT_WIN=3 -DLONG_WIN=5 -Ddata_file $(INC) -I src src/stretch/soa.c src/parser.c -o compiled/soa_test
+soa:
+	$(CC) -O2 -Dstress_file $(INC) -I src src/stretch/soa.c src/parser.c -o compiled/soa
+percentile-test:
+	$(CC) -O2 -DSHORT_WIN=3 -DLONG_WIN=5 -Ddata_file $(INC) -I src src/stretch/percentile.c src/parser.c -o compiled/percentile_test
+percentile:
+	$(CC) -O2 -Dstress_file $(INC) -I src src/stretch/percentile.c src/parser.c -o compiled/percentile
+
+run-soa: soa-test soa
+	./compiled/soa_test
+	./compiled/soa
+run-percentile: percentile-test percentile
+	./compiled/percentile_test
+	./compiled/percentile
