@@ -1,17 +1,14 @@
 #include <stdio.h>
-// Provided
 #include "timing.h"
-// Self-made
 #include "../shared/constant.h"
 #include "../shared/trade.h"
-#include "../shared/signal.h"
 #include "../stageA_plus/parser.h"
 
 static Trade trades[MAX_TRADES]; /* global, so it lives outside the stack */
 static int n_trades = 0;         /* how many shelf spots are really used */
 
 /* reads the whole file into trades[]; returns 1 if ok, 0 if the file is missing */
-int load_trades(const char *path)
+static int load_trades(const char *path)
 {
     FILE *fp = fopen(path, "r");
     long long ts;
@@ -35,6 +32,18 @@ int load_trades(const char *path)
 
     fclose(fp);
     return 1;
+}
+
+static void check_signal(double d_prev, double d, int *buy, int *sell)
+{
+    if (d_prev >= 0 && d < 0)
+    {
+        (*sell)++; /* SELL */
+    }
+    else if (d_prev <= 0 && d > 0)
+    {
+        (*buy)++; /* BUY */
+    }
 }
 
 static double vwap(void)

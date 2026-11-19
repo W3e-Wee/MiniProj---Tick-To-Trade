@@ -1,7 +1,7 @@
-#include "../shared/constant.h"
 #include "trade_io.h"
-#include "../stageA_plus/parser.h"
+#include "../shared/constant.h"
 #include "../shared/trade.h"
+#include "../stageA_plus/parser.h"
 #include "../stageB/versions.h"
 
 /* BUY/SELL rule: 1 = BUY, -1 = SELL, 0 = nothing.

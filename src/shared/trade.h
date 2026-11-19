@@ -5,16 +5,8 @@ typedef struct
     long long ts_us;
     double price;
     double qty;
-    long long price_fx; /* price x 100 as a whole number */
+    long long price_fx;
     int is_buy;
 } Trade;
-
-typedef struct 
-{
-    double open;
-    double high;
-    double low;
-    double close;
-} OhlcBar;
 
 #endif

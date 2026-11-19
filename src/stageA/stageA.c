@@ -12,6 +12,14 @@
 #define PLOT_START 60
 #define PLOT_END 2059
 
+typedef struct
+{
+    double open;
+    double high;
+    double low;
+    double close;
+} OhlcBar;
+
 static void compute_ohlc(OhlcBar *bar, long long *cur_sec, int *bar_trades, double price)
 {
     long long sec = trade_time() / 1000000;

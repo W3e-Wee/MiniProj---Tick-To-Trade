@@ -1,9 +1,9 @@
-#include "timing.h"
 #include <stdio.h>
-#include "settings.h"
-#include "trades.h"
-#include "rival.h" /* the P&L, used by the race window at the bottom */
+#include "timing.h"
 #include "vfastestmalloc.h"
+#include "../stageCrival/common/rival.h"
+#include "../shared/constant.h"
+
 #if defined(demo_fast) && defined(show_signals)
 #include "led.h" /* LED helper from the brief */
 #endif
@@ -17,43 +17,8 @@ void fast_reset(void)
     d_prev = 0;
 }
 
-/* trade i has just arrived: update the two sums and decide */
-int fast_step(int i)
-{
-    long long d;
-    int sig = 0;
-
-    sum_short += trades[i].price_fx;
-    sum_long += trades[i].price_fx;
-    if (i >= SHORT_WIN)
-    {
-        sum_short -= trades[i - SHORT_WIN].price_fx; /* the price leaving the short window */
-    }
-    if (i >= LONG_WIN)
-    {
-        sum_long -= trades[i - LONG_WIN].price_fx;
-    }
-
-    if (i + 1 >= LONG_WIN) /* both windows are full */
-    {
-        d = sum_short * LONG_WIN - sum_long * SHORT_WIN; /* same sign as short SMA - long SMA, no division */
-        if (i + 1 > LONG_WIN) /* we need a previous d to compare with */
-        {
-            if (d_prev >= 0 && d < 0)
-            {
-                sig = -1;
-            }
-            else if (d_prev <= 0 && d > 0)
-            {
-                sig = 1;
-            }
-        }
-        d_prev = d;
-    }
-    return sig;
-}
-
-/* ---- run on its own (make run-vfastestmalloc): the fastest bot on the market's own clock, with a live counter ---- */
+/* FOR RACE DEMO */
+/* ---- Run on its own (make run-vfastestmalloc): the fastest bot on the market's own clock, with a live counter ---- */
 #ifdef demo_fast
 
 #ifdef show_signals
@@ -129,7 +94,7 @@ int main(void)
 
         /* the clock is only around the bot, the same as in the compare */
         t0 = now_ns();
-        sig = fast_step(i);
+        sig = check_trade(i);
         t1 = now_ns();
         react = (long long)(t1 - t0);
         lat_sum += react;
