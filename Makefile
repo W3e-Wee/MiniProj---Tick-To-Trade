@@ -7,6 +7,7 @@ STAGEAPLUS_DIR = compiled/stageA_plus
 STAGEB_DIR = compiled/stageB
 STAGEC_DIR = compiled/stageC
 STAGECRIVAL_DIR = compiled/stageC_rival
+SHOW = -Dshow_signals    # put once above the stageC rules; run "make run-stageC-stress SHOW=" for a quiet laptop run
 
 #rival
 RIVAL_SRC = src/stageCrival/rival.c src/stageCrival/v0malloc.c src/stageCrival/vfastestmalloc.c src/stageCrival/trades.c src/stageA_plus/parser.c provided/trade_io.c
@@ -141,24 +142,34 @@ run-ladder-full:
 # =====================================
 # Stage C build and execute commands
 # =====================================
-stageC: 
-	$(call MKDIR,$(STAGEC_DIR))
-	$(CC) -O2 $(INC) src/stageC/stageC.c src/stageA_plus/parser.c -o $(STAGEC_DIR)/stageC
+stageC:
+	$(CC) -O2 $(SHOW) $(INC) src/stageC/stageC.c src/stageA_plus/parser.c -o $(STAGEC_DIR)/stageC
 
 stageC-test:
-	$(CC) -O2 -DSHORT_WIN=3 -DLONG_WIN=5 -Ddata_file $(INC) src/stageC/stageC.c src/stageA_plus/parser.c -o $(STAGEC_DIR)/stageC_test
+	$(CC) -O2 -Ddata_file -DSHORT_WIN=3 -DLONG_WIN=5 -DSPEED=1 $(SHOW) $(INC) src/stageC/stageC.c src/stageA_plus/parser.c -o $(STAGEC_DIR)/stageC_test
+stageC-1x:
+	$(CC) -O2 -Dstress_file -DSPEED=1 -DREPLAYS=10 $(SHOW) $(INC) src/stageC/stageC.c src/stageA_plus/parser.c -o $(STAGEC_DIR)/stageC_1x
+stageC-100x:
+	$(CC) -O2 -Dstress_file -DSPEED=100 $(SHOW) $(INC) src/stageC/stageC.c src/stageA_plus/parser.c -o $(STAGEC_DIR)/stageC_100x
+stageC-1000x:
+	$(CC) -O2 -Dstress_file -DSPEED=1000 $(SHOW) $(INC) src/stageC/stageC.c src/stageA_plus/parser.c -o $(STAGEC_DIR)/stageC_1000x
 
-stageC-stress:
-	$(CC) -O2 -Dstress_file $(INC) src/stageC/stageC.c src/stageA_plus/parser.c -o $(STAGEC_DIR)/stageC_stress
-
-run-stageC:
-	./$(STAGEC_DIR)/stageC
-
+run-stageC: stageC
+	$(SUDO) ./$(STAGEC_DIR)/stageC
 run-stageC-test: stageC-test
-	./$(STAGEC_DIR)/stageC_test
+	$(SUDO) ./$(STAGEC_DIR)/stageC_test
+run-stageC-1x: stageC-1x
+	$(SUDO) ./$(STAGEC_DIR)/stageC_1x
+run-stageC-100x: stageC-100x
+	$(SUDO) ./$(STAGEC_DIR)/stageC_100x
+run-stageC-1000x: stageC-1000x
+	$(SUDO) ./$(STAGEC_DIR)/stageC_1000x
 
-run-stageC-stress: stageC-stress
-	./$(STAGEC_DIR)/stageC_stress
+# the assembly listing for 7.5: run this on the Pi to get the AArch64 one
+asm-stageC:
+	$(CC) -S -O2 -DSPEED=1 $(INC) src/stageC/stageC.c -o $(STAGEC_DIR)/stageC.s
+
+run-stageC-stress: run-stageC-1x run-stageC-1000x
 
 # ===============================================
 # Stage C Rival Bot build and execute commands
