@@ -201,3 +201,41 @@ run-demov0: demov0
 
 run-demofast: demofast
 	$(SUDO) ./$(STAGECRIVAL_DIR)/demofast
+
+
+
+#EDIT THIS PARTS
+
+
+.PHONY: run-pyA run-pyA-test run-npA-test run-pyA-stress run-npA-stress
+
+
+# test20 with windows 3 and 5: expect BUY at 7 and SELL at 10
+run-pyA-test:
+	$(PY) stageA.py data/Group05/test20.csv 3 5
+run-npA-test:
+	$(PY) stageA_numpy.py data/Group05/test20.csv 3 5
+
+# stress_full.csv with the group windows; the results go to a file (a console is slow), the time still shows
+run-pyA-stress:
+	$(PY) src/stretch/stageA.py data/stress_full.csv 30 60 > src/stretch/pyA_stress.txt
+run-npA-stress:
+	$(PY) src/stretch/stageAnumpy.py data/stress_full.csv 30 60 > src/stretch/npA_stress.txt
+
+
+# everything: the test20 check first, then the stress run
+run-pyA: run-pyA-test run-npA-test run-pyA-stress run-npA-stress
+
+# HAND-WRITTEN ASSEMBLY STRETCH GOAL (AArch64: Raspberry Pi only)
+.PHONY: asm-bench run-asm asm-listing
+ifeq ($(OS),Windows_NT)
+asm-bench run-asm asm-listing:
+	@echo "The assembly stretch goal is AArch64 code: build and run it on the Raspberry Pi."
+else
+asm-bench:
+	$(CC) -O3 $(INC) -I src src/stretch/vwap.c src/stretch/vwap.S src/parser.c -o compiled/asm_bench
+run-asm: asm-bench
+	./compiled/asm_bench
+asm-listing:
+	$(CC) -O3 -S $(INC) -I src src/stretch/vwap.c -o compiled/vwap_O3.s
+endif
