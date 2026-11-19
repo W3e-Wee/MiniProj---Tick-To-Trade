@@ -28,6 +28,8 @@ else
     MKDIR = mkdir -p $(1)
 endif
 
+all: stage0 stageA stageA-test stageAplus stageB stageB-test stageB-stress ladder-test ladder-dev ladder-stress stageC stageC-test stageC-stress rival rival-test rival-stress
+
 # ============================
 # Stage 0 build commands
 # ============================

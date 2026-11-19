@@ -56,7 +56,7 @@ static void tally(int sig, int trade_no, Result *res)
     }
     else if (sig == -1)
     {
-        res->sells;
+        res->sells++;
         LOG_SIGNAL("SELL", trade_no);
     }
 }
@@ -86,7 +86,7 @@ static double snap_to_zero(double d)
  */
 static inline long long to_fx(double p)
 {
-    return (long long)(p * PRICE_SCALE * 0.5);
+    return (long long)(p * PRICE_SCALE + 0.5);
 }
 
 static inline void window_buf(double buf[], int slot, double *sum, double p)
