@@ -1,5 +1,7 @@
-#include "timing.h"
 #include <stdio.h>
+// Provided
+#include "timing.h"
+// Self made
 #include "parser.h"
 #include "../stage0/stage0_helper.h"
 
@@ -10,14 +12,20 @@
 /**
  * Times `sscanf` using the stress file per pass.
  * Uses pass by reference to get `total` for checksum.
- * 
+ *
  * @param total Running sum of the price * qty
- * 
+ *
  * @return The elpased time of the pass
  */
 static uint64_t time_sscanf(double *total)
 {
     FILE *fp = fopen(STRESS_FILE, "r");
+    if (fp == NULL)
+    {
+        printf("Error: Unable to read %s", STRESS_FILE);
+        return 0;
+    }
+
     long long ts;
     double p, q;
     int is_buy;
@@ -37,14 +45,20 @@ static uint64_t time_sscanf(double *total)
 /**
  * Times `fast_parser` using the stress file per pass.
  * Uses pass by reference to get `total` for checksum.
- * 
+ *
  * @param total Running sum of price * qty
- * 
+ *
  * @return The elapsed time of the pass
  */
 static uint64_t time_fast(double *total)
 {
     FILE *fp = fopen(STRESS_FILE, "r");
+    if (fp == NULL)
+    {
+        printf("Error: Unable to read %s", STRESS_FILE);
+        return 0;
+    }
+
     long long ts;
     double p, q;
     int is_buy;
@@ -68,13 +82,13 @@ int main(void)
     long long ts1, ts2;
     double p1, p2, q1, q2;
     int b1, b2;
+    int ra, rb;
 
     /* Timing var */
     int rows = 0, mismatches = 0;
     uint64_t slow[RUNS], fast[RUNS];
     uint64_t slow_median, fast_median;
     double total_slow = 0.0, total_fast = 0.0;
-    int r;
 
     fa = fopen(TEST_FILE, "r");
     fb = fopen(TEST_FILE, "r");
@@ -83,20 +97,28 @@ int main(void)
         printf("cannot open %s\n", TEST_FILE);
         return 1;
     }
-    /* check 1: Both parsers must agree on every trade in test20 */
-    while (read_trade(fa, &ts1, &p1, &q1, &b1) && fast_parser(fb, &ts2, &p2, &q2, &b2))
+
+    /* Infinite loop to check that both parsers are equal */
+    while ((ra = read_trade(fa, &ts1, &p1, &q1, &b1)), (rb = fast_parser(fb, &ts2, &p2, &q2, &b2)), ra && rb)
     {
         rows++;
         printf("%d %lld %.8f %.8f %d\n", rows, ts2, p2, q2, b2);
-        if (ts1 != ts2 || p1 != p2 || q1 != q2 || b1 != b2)
+        if (ts1 != ts2 || p1 != p2 || q1 != q2 || b1 != b2) // Check for mismatches while reading file
         {
             mismatches++;
         }
     }
+
+    /* Loop ends: Both parser must have hit end of file together */
+    if ((ra != 0) != (rb != 0))
+    {
+        mismatches++; // Checks if any parser ended earlier
+    }
+
     fclose(fa);
     fclose(fb);
     printf("test20: %d rows, %d mismatches\n\n", rows, mismatches);
-    
+
     fa = fopen(STRESS_FILE, "r");
     if (fa == NULL)
     {
@@ -104,9 +126,9 @@ int main(void)
         return 1;
     }
     fclose(fa);
-    
+
     /* check 2: Time both parsers on the full file, 5 runs each */
-    for (r = 0; r < RUNS; r++)
+    for (int r = 0; r < RUNS; r++)
     {
         slow[r] = time_sscanf(&total_slow);
         fast[r] = time_fast(&total_fast);
@@ -118,8 +140,9 @@ int main(void)
     printf("Stress_full.csv Benchmarks:\n");
     printf("==============================\n");
     printf("Median(ms): sscanf parser = %.3f    fast parser = %.3f\n", slow_median / 1e6, fast_median / 1e6);
+    printf("Median(ns): sscanf parser = %llu   fast parser = %llu\n", slow_median, fast_median);
     printf("Speedup = %.2fx\n", (double)slow_median / (double)fast_median);
     printf("Checksums: %.8f and %.8f (%s)\n", total_slow, total_fast,
-           total_slow == total_fast ? "\033[32mMATCH\033[0m" : "033[31mDIFFERENT\033[0m");
+           total_slow == total_fast ? "\033[32mMATCH\033[0m" : "\033[31mDIFFERENT\033[0m");
     return 0;
 }

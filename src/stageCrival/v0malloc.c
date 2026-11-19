@@ -1,12 +1,9 @@
-#include "timing.h"
 #include <stdio.h>
-#include "settings.h"
+#include "timing.h"
 #include "trade_io.h" /* helper library: V0 reads its lines with this */
-#include "trades.h"
-#include "rival.h" /* the P&L, used by the race window at the bottom */
 #include "v0malloc.h"
-
-#define TOLERANCE 0.000001 /* a difference smaller than this counts as zero */
+#include "../shared/constant.h"
+#include "../stageCrival/common/rival.h"
 
 static double short_prices[SHORT_WIN];
 static double long_prices[LONG_WIN];
@@ -44,6 +41,13 @@ int v0_reset(void)
     return open_trades(DATA_FILE);
 }
 
+/**
+ * Uses the current trade index to deteremine a BUY/SELL signal.
+ * Re-adds entire window to get the SMA.
+ *
+ * @param i The trade index
+ * @return The BUY/SELL signal
+ */
 int v0_step(int i)
 {
     double p, sum, d;
@@ -91,7 +95,8 @@ void v0_close(void)
     close_trades();
 }
 
-/* ---- run on its own (make run-demov0): the V0 bot on the market's own clock, with a live counter ---- */
+/* FOR RACE DEMO */
+/* ---- Run on its own (make run-demov0): the V0 bot on the market's own clock, with a live counter ---- */
 #ifdef demo_v0
 int main(void)
 {

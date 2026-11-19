@@ -9,9 +9,9 @@ STAGEC_DIR = compiled/stageC
 STAGECRIVAL_DIR = compiled/stageC_rival
 
 #rival
-RIVAL_SRC = src/stageCrival/rival.c src/stageCrival/v0malloc.c src/stageCrival/vfastestmalloc.c src/stageCrival/trades.c src/stageA_plus/parser.c provided/trade_io.c
-V0_SRC = src/stageCrival/v0malloc.c src/stageCrival/rival.c src/stageCrival/trades.c src/stageA_plus/parser.c provided/trade_io.c
-FAST_SRC = src/stageCrival/vfastestmalloc.c src/stageCrival/rival.c src/stageCrival/trades.c src/stageA_plus/parser.c
+RIVAL_SRC = src/stageCrival/compareRival.c src/stageCrival/common/rival.c src/stageCrival/v0malloc.c src/stageCrival/vfastestmalloc.c src/stageA_plus/parser.c provided/trade_io.c
+V0_SRC = src/stageCrival/v0malloc.c src/stageCrival/common/rival.c src/stageA_plus/parser.c provided/trade_io.c
+FAST_SRC = src/stageCrival/vfastestmalloc.c src/stageCrival/common/rival.c src/stageA_plus/parser.c
 RACE_SPEED = 10000
 RACE_LED = #for the rpi
 .PHONY: rival rival-test rival-stress run-rival run-rival-test run-rival-stress plot-rival demov0 demofast run-demov0 run-demofast
@@ -64,11 +64,11 @@ loop-o3:
 # ===================================
 stageA:
 	$(call MKDIR,$(STAGEA_DIR))
-	$(CC) -O2 $(INC) src/stageA/stageA.c provided/trade_io.c -o $(STAGEA_DIR)/stageA
+	$(CC) -O2 $(INC)  src/stageA/stageA.c provided/trade_io.c src/shared/signal.c -o $(STAGEA_DIR)/stageA
 
 stageA-test:
 	$(call MKDIR,$(STAGEA_DIR))
-	$(CC) -DSHORT_WIN=3 -DLONG_WIN=5 -Ddata_file $(INC) src/stageA/stageA.c provided/trade_io.c -o $(STAGEA_DIR)/stageA_test
+	$(CC) -DSHORT_WIN=3 -DLONG_WIN=5 -Ddata_file $(INC) src/stageA/stageA.c provided/trade_io.c src/shared/signal.c -o $(STAGEA_DIR)/stageA_test
 
 run-stageA: stageA
 	$(call MKDIR,$(STAGEA_DIR))
@@ -93,7 +93,7 @@ run-stageAplus: stageAplus
 # =====================================
 stageB: 
 	$(call MKDIR,$(STAGEB_DIR))
-	$(CC) -O2 $(INC) src/stageB/stageB.c src/stageA_plus/parser.c -o $(STAGEB_DIR)/stageB
+	$(CC) -O2 $(INC) src/stageB/stageB.c src/stageA_plus/parser.c src/shared/signal.c -o $(STAGEB_DIR)/stageB
 
 stageB-test:
 	$(CC) -O2 -DSHORT_WIN=3 -DLONG_WIN=5 -Ddata_file $(INC) src/stageB/stageB.c src/stageA_plus/parser.c -o $(STAGEB_DIR)/stageB_test
@@ -105,13 +105,13 @@ run-stageB:
 	./$(STAGEB_DIR)/stageB
 
 ladder-test:
-	$(CC) -O2 -DSHORT_WIN=3 -DLONG_WIN=5 -Ddata_file $(INC) src/stageB/ladder.c src/stageA_plus/parser.c provided/trade_io.c -o $(STAGEB_DIR)/ladder_test
+	$(CC) -O2 -DSHORT_WIN=3 -DLONG_WIN=5 -Ddata_file $(INC) src/stageB/ladder.c src/stageA_plus/parser.c provided/trade_io.c src/stage0/stage0_helper.c src/stageB/versions.c -o $(STAGEB_DIR)/ladder_test
 
 ladder-stress:
-	$(CC) -O2 -Dstress_file $(INC) src/stageB/ladder.c src/stageA_plus/parser.c provided/trade_io.c -o $(STAGEB_DIR)/ladder_stress
+	$(CC) -O2 -Dstress_file $(INC) src/stageB/ladder.c src/stageA_plus/parser.c provided/trade_io.c src/stage0/stage0_helper.c src/stageB/versions.c -o $(STAGEB_DIR)/ladder_stress
 
 ladder-dev:
-	$(CC) -O2 $(INC) src/stageB/ladder.c src/stageA_plus/parser.c provided/trade_io.c -o $(STAGEB_DIR)/ladder_dev
+	$(CC) -O2 $(INC) src/stageB/ladder.c src/stageA_plus/parser.c provided/trade_io.c src/stage0/stage0_helper.c src/stageB/versions.c -o $(STAGEB_DIR)/ladder_dev
 
 # each run- target rebuilds first, so it can never run an old compiled copy
 run-ladder-test: ladder-test
@@ -143,13 +143,13 @@ run-ladder-full:
 # =====================================
 stageC: 
 	$(call MKDIR,$(STAGEC_DIR))
-	$(CC) -O2 $(INC) src/stageC/stageC.c src/stageA_plus/parser.c -o $(STAGEC_DIR)/stageC
+	$(CC) -O2 $(INC) src/stageC/stageC.c src/stageA_plus/parser.c src/stageCrival/common/rival.c -o $(STAGEC_DIR)/stageC
 
 stageC-test:
-	$(CC) -O2 -DSHORT_WIN=3 -DLONG_WIN=5 -Ddata_file $(INC) src/stageC/stageC.c src/stageA_plus/parser.c -o $(STAGEC_DIR)/stageC_test
+	$(CC) -O2 -DSHORT_WIN=3 -DLONG_WIN=5 -Ddata_file $(INC) src/stageC/stageC.c src/stageA_plus/parser.c src/stageCrival/common/rival.c -o $(STAGEC_DIR)/stageC_test
 
 stageC-stress:
-	$(CC) -O2 -Dstress_file $(INC) src/stageC/stageC.c src/stageA_plus/parser.c -o $(STAGEC_DIR)/stageC_stress
+	$(CC) -O2 -Dstress_file $(INC) src/stageC/stageC.c src/stageA_plus/parser.c src/stageCrival/common/rival.c -o $(STAGEC_DIR)/stageC_stress
 
 run-stageC:
 	./$(STAGEC_DIR)/stageC

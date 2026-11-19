@@ -1,42 +1,14 @@
-#include "timing.h"
 #include <stdio.h>
+#include "timing.h"
+#include "../shared/constant.h"
+#include "../shared/trade.h"
 #include "../stageA_plus/parser.h"
-
-/* Same size as stageA */
-#ifndef SHORT_WIN
-#define SHORT_WIN 30
-#endif
-#ifndef LONG_WIN
-#define LONG_WIN 60
-#endif
-
-#if defined(data_file)
-#define DATA_FILE "data/Group05/test20.csv"
-#elif defined(stress_file)
-#define DATA_FILE "data/stress_full.csv"
-#else
-#define DATA_FILE "data/Group05/dev_1M.csv"
-#endif
-
-#define MAX_TRADES 9000000 /* stress_full.csv has 8,928,944 trades */
-#define TOLERANCE 0.000001   /* a difference smaller than this counts as zero */
-
-
-/* ---- STEP 1: one trade, and the big shelf that holds all of them ---- */
-typedef struct
-{
-    long long ts_us; /* time in microseconds */
-    double price;
-    double qty;
-    long long price_fx; /* the same price as a whole number: price x PRICE_K */
-    int is_buy; /* 1 = buy, 0 = sell */
-} Trade;
 
 static Trade trades[MAX_TRADES]; /* global, so it lives outside the stack */
 static int n_trades = 0;         /* how many shelf spots are really used */
 
 /* reads the whole file into trades[]; returns 1 if ok, 0 if the file is missing */
-int load_trades(const char *path)
+static int load_trades(const char *path)
 {
     FILE *fp = fopen(path, "r");
     long long ts;
@@ -62,7 +34,19 @@ int load_trades(const char *path)
     return 1;
 }
 
-double vwap(void)
+static void check_signal(double d_prev, double d, int *buy, int *sell)
+{
+    if (d_prev >= 0 && d < 0)
+    {
+        (*sell)++; /* SELL */
+    }
+    else if (d_prev <= 0 && d > 0)
+    {
+        (*buy)++; /* BUY */
+    }
+}
+
+static double vwap(void)
 {
     double sum_pq = 0.0, sum_q = 0.0;
     int i;
@@ -75,29 +59,29 @@ double vwap(void)
     return sum_pq / sum_q;
 }
 
-int check_signal(double d_prev, double d)
+/**
+ * Calculate SMA by re-adding the whole window every trade (naive)
+ *
+ * @param buys Pointer to track BUY count
+ * @param sells Pointer to track SELL count
+ *
+ */
+static void signals_naive(int *buys, int *sells)
 {
-    if (d_prev >= 0 && d < 0)
-    {
-        return -1; /* SELL */
-    }
-    else if (d_prev <= 0 && d > 0)
-    {
-        return 1; /* BUY */
-    }
-    return 0;
-}
+    /* SMA values*/
+    double sum_short = 0.0, sum_long = 0.0;
+    int i = 0;
+    int k;
 
-/* ---- STEP 2a: SMA the slow way (re-add the whole window every trade) ---- */
-void signals_naive(int *buys, int *sells)
-{
-    double sum_short, sum_long, d, d_prev = 0.0;
-    int i, k, sig;
+    /* Signal values */
+    double d, d_prev = 0.0;
 
     *buys = 0;
     *sells = 0;
+
     for (i = LONG_WIN - 1; i < n_trades; i++)
     {
+        /* Calculate the SMA naively */
         sum_short = 0.0;
         sum_long = 0.0;
         for (k = 0; k < SHORT_WIN; k++)
@@ -109,41 +93,31 @@ void signals_naive(int *buys, int *sells)
             sum_long += trades[i - k].price;
         }
 
+        /* Get BUY/ SELL signal */
         d = sum_short / SHORT_WIN - sum_long / LONG_WIN;
-        if (d > -TOLERANCE && d < TOLERANCE)
-        {
-            d = 0.0;
-        }
+
+        /* Adjust signal to 0 if close to TOLERANCE */
+        d = (d > -TOLERANCE && d < TOLERANCE) ? 0.0 : d;
 
         if (i > LONG_WIN - 1)
-        {
-            sig = check_signal(d_prev, d);
-            if (sig == 1)
-            {
-                (*buys)++;
+            check_signal(d_prev, d, buys, sells);
 
-/*runs test20 if datafile not defined; prints for test 20 instead of 1m or stess*/                
-#ifdef data_file
-                printf("BUY at %d\n", i + 1);
-#endif
-            }
-            else if (sig == -1)
-            {
-                (*sells)++;
-#ifdef data_file
-                printf("SELL at %d\n", i + 1);
-#endif
-            }
-        }
+        /* Set new previous signal value */
         d_prev = d;
     }
 }
 
-/* ---- STEP 2b: SMA the quick way (keep the window sums, slide by one) ---- */
-void signals_running(int *buys, int *sells)
+/**
+ * Calculates SMA via a running sum instead of re-adding the whole trade window
+ *
+ * @param buys Pointer to track BUY count
+ * @param sells Pointer to track SELL count
+ */
+static void signals_running(int *buys, int *sells)
 {
-    double sum_short = 0.0, sum_long = 0.0, d, d_prev = 0.0;
-    int i, sig;
+    double sum_short = 0.0, sum_long = 0.0,
+           d, d_prev = 0.0;
+    int i;
 
     *buys = 0;
     *sells = 0;
@@ -172,29 +146,30 @@ void signals_running(int *buys, int *sells)
             d = 0.0;
         }
 
-        sig = check_signal(d_prev, d);
-        if (sig == 1)
-        {
-            (*buys)++;
-        }
-        else if (sig == -1)
-        {
-            (*sells)++;
-        }
+        /* Update BUY/ SELL signal */
+        check_signal(d_prev, d, buys, sells);
+
         d_prev = d;
     }
 }
 
-/* ---- STEP 3: the same two SMA methods, on the whole-number prices ---- */
-void signals_naive_fixed(int *buys, int *sells)
+/**
+ * Uses naive method but instead of a `double` type, uses fixed point integer `long long`
+ *
+ * @param buys Pointer to track BUY count
+ * @param sells Pointer to track SELL count
+ */
+static signals_naive_fixed(int *buys, int *sells)
 {
     long long sum_short, sum_long, d, d_prev = 0;
-    int i, k, sig;
+    int i = 0, k = 0;
+    int sig;
 
     *buys = 0;
     *sells = 0;
     for (i = LONG_WIN - 1; i < n_trades; i++)
     {
+        /* Compute SMA values for SHORT & LONG window */
         sum_short = 0;
         sum_long = 0;
         for (k = 0; k < SHORT_WIN; k++)
@@ -206,25 +181,25 @@ void signals_naive_fixed(int *buys, int *sells)
             sum_long += trades[i - k].price_fx;
         }
 
+        // Update BUY/SELL signal
         d = sum_short * LONG_WIN - sum_long * SHORT_WIN;
 
         if (i > LONG_WIN - 1)
         {
-            sig = check_signal(d_prev, d);
-            if (sig == 1)
-            {
-                (*buys)++;
-            }
-            else if (sig == -1)
-            {
-                (*sells)++;
-            }
+            check_signal(d_prev, d, buys, sells);
         }
+
         d_prev = d;
     }
 }
 
-void signals_running_fixed(int *buys, int *sells)
+/**
+ * Uses running-sum method, uses `long long`
+ *
+ * @param buys Pointer to track BUY count
+ * @param sells Pointer to track SELL count
+ */
+static signals_running_fixed(int *buys, int *sells)
 {
     long long sum_short = 0, sum_long = 0, d, d_prev;
     int i, sig;
@@ -248,22 +223,14 @@ void signals_running_fixed(int *buys, int *sells)
 
         d = sum_short * LONG_WIN - sum_long * SHORT_WIN;
 
-        sig = check_signal(d_prev, d);
-        if (sig == 1)
-        {
-            (*buys)++;
-        }
-        else if (sig == -1)
-        {
-            (*sells)++;
-        }
+        check_signal(d_prev, d, buys, sells);
         d_prev = d;
     }
 }
 
 int main(void)
 {
-    uint64_t t0, t1, t2, t3, t4, t5, t6;
+    uint64_t t0, t1, t2, t3, t4, t5, t6; /* Timing for each function */
     int buys_naive, sells_naive, buys_run, sells_run;
     int buys_nf, sells_nf, buys_rf, sells_rf;
     double v;
