@@ -42,11 +42,14 @@ else
     MKDIR = mkdir -p $(1)
 endif
 
+all: stage0 stageA stageA-test stageAplus stageB stageB-test stageB-stress ladder-test ladder-dev ladder-stress stageC stageC-test stageC-stress rival rival-test rival-stress
+
 # ============================
 # Stage 0 build commands
 # ============================
 # Builds all stage 0 files
 stage0: loop loop-o1 loop-o2 loop-o3 stage0_benchmark stage0_benchmark-o2
+
 stage0_benchmark: src/stage0/stage0_helper.c src/stage0/sum_recursive.c
 	$(call MKDIR,$(STAGE0_DIR))
 	${CC} ${CFLAGS} src/stage0/stage0_helper.c src/stage0/sum_recursive.c -o $(STAGE0_DIR)/sum_recursive
@@ -78,11 +81,11 @@ loop-o3:
 # ===================================
 stageA:
 	$(call MKDIR,$(STAGEA_DIR))
-	$(CC) -O2 $(INC)  src/stageA/stageA.c provided/trade_io.c src/shared/signal.c -o $(STAGEA_DIR)/stageA
+	$(CC) -O2 $(INC)  src/stageA/stageA.c provided/trade_io.c -o $(STAGEA_DIR)/stageA
 
 stageA-test:
 	$(call MKDIR,$(STAGEA_DIR))
-	$(CC) -DSHORT_WIN=3 -DLONG_WIN=5 -Ddata_file $(INC) src/stageA/stageA.c provided/trade_io.c src/shared/signal.c -o $(STAGEA_DIR)/stageA_test
+	$(CC) -DSHORT_WIN=3 -DLONG_WIN=5 -Ddata_file $(INC) src/stageA/stageA.c provided/trade_io.c -o $(STAGEA_DIR)/stageA_test
 
 run-stageA: stageA
 	$(call MKDIR,$(STAGEA_DIR))
