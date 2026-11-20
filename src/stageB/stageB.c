@@ -159,7 +159,7 @@ static void signals_running(int *buys, int *sells)
  * @param buys Pointer to track BUY count
  * @param sells Pointer to track SELL count
  */
-static signals_naive_fixed(int *buys, int *sells)
+static void signals_naive_fixed(int *buys, int *sells)
 {
     long long sum_short, sum_long, d, d_prev = 0;
     int i = 0, k = 0;
@@ -199,7 +199,7 @@ static signals_naive_fixed(int *buys, int *sells)
  * @param buys Pointer to track BUY count
  * @param sells Pointer to track SELL count
  */
-static signals_running_fixed(int *buys, int *sells)
+static void signals_running_fixed(int *buys, int *sells)
 {
     long long sum_short = 0, sum_long = 0, d, d_prev;
     int i, sig;

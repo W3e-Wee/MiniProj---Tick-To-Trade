@@ -30,7 +30,7 @@ void show_signal(int sig, int trade_no)
         printf(RED "SELL at trade %d" RESET "\n", trade_no);
     }
 }
-#defin LED_START() led_init()
+#define LED_START() led_init()
 #define LED_STOP()          \
     do                      \
     {                       \
