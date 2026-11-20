@@ -1,8 +1,6 @@
 #include <stdio.h>
-// Provided
 #include "timing.h"
-// Self made
-#include "parser.h"
+#include "../shared/parser.h"
 #include "../stage0/stage0_helper.h"
 
 #define TEST_FILE "data/Group05/test20.csv"
@@ -122,12 +120,12 @@ int main(void)
     fa = fopen(STRESS_FILE, "r");
     if (fa == NULL)
     {
-        printf("cannot open %s\n", STRESS_FILE);
+        printf("Error: Unale to open %s\n", STRESS_FILE);
         return 1;
     }
     fclose(fa);
 
-    /* check 2: Time both parsers on the full file, 5 runs each */
+    /* Time both parsers on the full file, 5 runs each */
     for (int r = 0; r < RUNS; r++)
     {
         slow[r] = time_sscanf(&total_slow);

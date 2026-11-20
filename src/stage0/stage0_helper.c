@@ -2,9 +2,9 @@
 
 /**
  * Iteratively loops and sums values from 1 to `val`
- * 
+ *
  * @param val The max value to loop
- * 
+ *
  * @return THe total sum of the loop
  */
 uint64_t sum_loop(uint32_t val)
@@ -21,9 +21,9 @@ uint64_t sum_loop(uint32_t val)
 
 /**
  * Recursively sums values from 1 to `val`
- * 
+ *
  * @param val The max recurstion depth
- * 
+ *
  * @return The total sum of the recursion.
  */
 uint64_t sum_recursive(uint32_t val)
@@ -33,18 +33,19 @@ uint64_t sum_recursive(uint32_t val)
 
 /**
  * Uses insertion sort to sort an array of timings and gets the median.
- * 
+ *
  * @param times[] An array of `uint64_t` timings
  * @param runs Number of repititions that the program runs
- * 
+ *
  * @return The median timing of the total runs made
  */
 uint64_t median(const uint64_t times[], int runs)
 {
-    if (runs <= 0) return 0;
+    if (runs <= 0)
+        return 0;
 
     uint64_t sorted[runs];
-    
+
     for (int i = 0; i < runs; i++)
     {
         uint64_t temp = times[i];

@@ -6,15 +6,15 @@
    a slower bot trades at the price of the NEXT trade.
    These are the P&L functions, used by rival.c (the compare) and by both race windows. */
 
-#define RIVAL_NS 1000.0    /* the rival reacts in 1 us = 1000 ns (the standard value) */
-#define MAX_SIGNALS 200000 /* Max signals */
+#define RIVAL_NS 1000.0 /* the rival reacts in 1 us = 1000 ns (the standard value) */
+#define MAX_SIGNALS 200000
 
 typedef struct
 {
-    long long buy_total;  /* all buying prices added up, in 0.01 USDT */
-    long long sell_total; /* all selling prices added up, in 0.01 USDT */
-    long long last_buy;   /* the price we paid for the BTC we are holding now */
-    int holding;          /* 1 = we hold the 1 BTC, 0 = we hold none */
+    long long buy_total;  /* all buying prices added up (fixed-point) */
+    long long sell_total; /* all selling prices added up (fixed-point) */
+    long long last_buy;   /* the price paid for the BTC currently held */
+    int holding;          /* 1 = holding; 0 = hold nothing */
 } Position;
 
 /* one signal, as a bot saw it */
@@ -27,6 +27,9 @@ typedef struct
 
 extern Trade *trades; /* the shelf, built by malloc */
 extern int n_trades;  /* how many shelf spots are really used */
+
+/* 1 if the rival gets there first for a signal raised by trade idx (there must be a next trade to fill at) */
+int rival_wins(int idx, long long react_ns, double r_ns);
 
 int load_trades(const char *path);
 

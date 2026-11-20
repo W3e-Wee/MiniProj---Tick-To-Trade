@@ -2,8 +2,7 @@
 #include <stdint.h>
 #include <math.h>
 #include "timing.h"
-#include "v0malloc.h"
-#include "vfastestmalloc.h"
+#include "v0Bot.h"
 #include "../shared/constant.h"
 #include "../stageCrival/common/rival.h"
 
@@ -25,18 +24,8 @@ typedef struct
     int dropped;
 } Bot;
 
-/**
- * Resets Long & short SMA sum and difference.
- * @return `1` - Successful reset
- */
-static int fast_reset_ok(void)
-{
-    fast_reset();
-    return 1;
-}
-
 static Bot v0_bot = {"V0 bot", v0_reset, v0_step, v0_close};
-static Bot fast_bot = {"Fast bot", fast_reset_ok, check_trade, NULL};
+static Bot fast_bot = {"Fast bot", NULL, check_trade, NULL};
 
 /**
  * Runs one bot (v0/fast) over every trade.
@@ -124,7 +113,7 @@ static int races_lost(const Bot *b, double r_ns)
     for (int i = 0; i < b->n_sig; i++)
     {
         /* Checks if current bot loses to rival's timing*/
-        if (b->sig[i].react_ns >= r_ns)
+        if (rival_wins(b->sig[i].idx, b->sig[i].react_ns, r_ns))
         {
             lost++;
         }
@@ -181,15 +170,12 @@ static void print_reaction(const Bot *b)
  * For test_20 build only.
  * Lists every signal.
  */
-static int print_signals(const Bot *b)
+static void print_signals(const Bot *b)
 {
     for (int i = 0; i < b->n_sig; i++)
     {
-        for (int i = 0; i < b->n_sig; i++)
-        {
-            printf("%-8s %s at trade %d, reaction %lld ns\n", b->name,
-                   b->sig[i].side == 1 ? "BUY " : "SELL", b->sig[i].idx + 1, b->sig[i].react_ns);
-        }
+        printf("%-8s %s at trade %d, reaction %lld ns\n", b->name,
+               b->sig[i].side == 1 ? "BUY " : "SELL", b->sig[i].idx + 1, b->sig[i].react_ns);
     }
 }
 #endif
@@ -243,14 +229,18 @@ static int compare_bots(Bot *a, Bot *b)
     fflush(stdout);
     if (!run_bot(a))
     {
-        printf("Error: Unable to open %s\n", DATA_FILE);
+        printf("Error: V0 bot could not open %s\n", DATA_FILE);
         return 1;
     }
     printf("Done\n");
 
     printf("Running the fast bot (malloc array + running-sum fixed point)... \n");
     fflush(stdout);
-    run_bot(b);
+    if (!run_bot(b))
+    {
+        printf("Error: fast bot could not start\n");
+        return 1;
+    };
     printf("Done\n\n");
 
 #ifdef data_file

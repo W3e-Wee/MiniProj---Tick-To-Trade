@@ -2,7 +2,7 @@
 #include "timing.h"
 #include "../shared/constant.h"
 #include "../shared/trade.h"
-#include "../stageA_plus/parser.h"
+#include "../shared/parser.h"
 
 static Trade trades[MAX_TRADES]; /* global, so it lives outside the stack */
 static int n_trades = 0;         /* how many shelf spots are really used */

@@ -18,7 +18,7 @@
 #define DATA_FILE "data/Group05/dev_1M.csv"
 #endif
 
-#define PRICE_SCALE 100000000LL
+#define PRICE_SCALE 100
 
 /* Ladder Testing */
 #define VERSIONS 5
@@ -33,9 +33,9 @@
 #define REPLAYS 0 /* seconds of market time to replay; 0 = the whole file */
 #endif
 #define STATUS_NS 100000000LL /* the live counter refreshes every 100 ms */
-#endif
 
 /* Sets terminal color */
 #define GREEN "\033[32m"
 #define RED "\033[31m"
 #define RESET "\033[0m"
+#endif
