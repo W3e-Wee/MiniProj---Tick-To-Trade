@@ -39,7 +39,7 @@ static int run_bot(Bot *b)
 {
     b->n_sig = 0;
     b->dropped = 0;
-    if (!b->reset())
+    if (b->reset && !b->reset())
     {
         return 0;
     }

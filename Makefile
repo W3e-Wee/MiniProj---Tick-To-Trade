@@ -9,9 +9,9 @@ STAGEC_DIR = compiled/stageC
 STAGECRIVAL_DIR = compiled/stageC_rival
  
 #rival
-RIVAL_SRC = src/stageCrival/compareRival.c src/stageCrival/common/rival.c src/stageCrival/v0Bot.c  src/shared/parser.c provided/trade_io.c
+RIVAL_SRC = src/stageCrival/compareRival.c src/stageCrival/common/rival.c src/stageCrival/v0Bot.c src/shared/parser.c provided/trade_io.c
 V0_SRC = src/stageCrival/v0Bot.c src/stageCrival/common/rival.c src/shared/parser.c provided/trade_io.c
-FAST_SRC =  src/stageCrival/common/rival.c src/shared/parser.c
+FAST_SRC = src/stageCrival/common/rival.c src/shared/parser.c
 REPLAY_SRC = src/stageCrival/common/replay.c
 RACE_SRC = src/stageCrival/race_demo.c src/stageCrival/common/race.c $(REPLAY_SRC)
 STAGEC_SRC = src/stageC/stageC.c src/shared/parser.c src/stageCrival/common/rival.c $(REPLAY_SRC)
@@ -28,7 +28,7 @@ else
     $(error BOT must be v0 or fast)
 endif
  
-.PHONY: rival rival-test rival-stress run-rival run-rival-test run-rival-stress plot-rival \
+.PHONY: clean rival rival-test rival-stress run-rival run-rival-test run-rival-stress plot-rival \
         demo run-demo demov0 demofast run-demov0 run-demofast run-ladder-full
  
 SUDO =
@@ -37,13 +37,19 @@ ifeq ($(OS),Windows_NT)
     SUDO =
     fixpath = $(subst /,\,$(1))
     MKDIR = if not exist $(call fixpath,$(1)) mkdir $(call fixpath,$(1))
+    RMDIR = if exist $(call fixpath,$(1)) rmdir /s /q $(call fixpath,$(1))
 else
     SUDO = sudo
     fixpath = $(1)
     MKDIR = mkdir -p $(1)
+    RMDIR = rm -rf $(1)
 endif
  
 all: stage0 stageA stageA-test stageAplus stageB stageB-test stageB-stress ladder-test ladder-dev ladder-stress stageC stageC-test stageC-stress rival rival-test rival-stress
+ 
+# delete every build output (binaries, results, plots)
+clean:
+	$(call RMDIR,compiled)
  
 # ============================
 # Stage 0 build commands

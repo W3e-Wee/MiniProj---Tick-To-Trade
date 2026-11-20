@@ -1,15 +1,14 @@
 #include <stdio.h>
 #include "timing.h"
 #include "race.h"
+#include "replay.h"
 #include "rival.h"
-#include "../../shared/constant.h"
-#include "../../shared/signal.h"
 #include "../../shared/led_show.h"
-#include "common/replay.h"
+#include "../../shared/constant.h"
 
 void run_race(const Bot *bot)
 {
-    Position *pos;
+    Position pos;
     ReplayStats st = {0};
     uint64_t start, t0, t1;
     long long due, elapsed, lag = 0;
@@ -22,34 +21,27 @@ void run_race(const Bot *bot)
     LED_START();
 
     printf("%s: %d trades replayed at %dx, rival R = %.0f ns\n\n", bot->name, n_trades, SPEED, RIVAL_NS);
-    first_ts = trades[0].ts_us;
-    last_ts = first_ts;
+    st.first_ts = st.prev_ts = trades[0].ts_us;
     start = now_ns();
 
     for (i = 0; i < n_trades; i++)
     {
-        /* stops early on the first REPLAY seconds of trading */
-        if (REPLAYS > 0 && trades[i].ts_us - first_ts >= REPLAYS * 1000000LL)
+        /* stop early if we only want the first REPLAYS seconds of trading */
+        if (past_replay_limit(i, st.first_ts))
         {
             break;
         }
 
-        /* time when trade should come out*/
-        due = due_ns(i, first_ts);
+        /* when this trade should come out, and how late we are */
+        due = due_ns(i, st.first_ts);
         elapsed = wait_until(due, start);
-
-        /* how far behind was the bot */
         lag = elapsed - due;
 
-        if (lag > max_lag)
-        {
-            max_lag = lag;
-        }
-
+        /* the clock is only around the bot */
         t0 = now_ns();
         sig = bot->step(i);
         t1 = now_ns();
-        react = (long long)(t1 = t0);
+        react = (long long)(t1 - t0);
 
         update_stats(&st, i, sig, react, lag);
 
@@ -57,8 +49,7 @@ void run_race(const Bot *bot)
         {
             apply_signal(&pos, sig, fill_price(i, react, RIVAL_NS));
             last_sig = sig;
-            tally_signal(sig, &buys, &sells);
-            SHOW_LED(sig);
+            SHOW_LED(sig); /* after the clock stopped, so it is not part of the reaction time */
         }
 
         if (elapsed >= next_status)
@@ -66,7 +57,7 @@ void run_race(const Bot *bot)
             last = "-   ";
             if (last_sig == 1)
             {
-                last = GREEN "BUY" RESET;
+                last = GREEN "BUY " RESET;
             }
             else if (last_sig == -1)
             {
@@ -74,15 +65,14 @@ void run_race(const Bot *bot)
             }
 
             printf("\r%-7s market %7.1f s | lag %10.3f ms | BUY %5d SELL %5d | P&L %11.2f | last %s ",
-                   bot->name, (last_ts - first_ts) / 1e6, lag / 1e6, buys, sells, position_closed_pnl(&pos), last);
+                   bot->name, (st.prev_ts - st.first_ts) / 1e6, lag / 1e6, st.buys, st.sells,
+                   position_closed_pnl(&pos), last);
             fflush(stdout);
             next_status = elapsed + STATUS_NS; /* the next print is 100 ms from now */
         }
     }
 
-    elapsed = (long long)(now_ns() - start);
-
-    printf("\n\n%s Finished\n", bot->name);
+    printf("\n%s finished", bot->name);
     print_summary(&st, (long long)(now_ns() - start));
     printf("Lateness at the end:  %.3f ms\n", lag / 1e6);
     printf("P&L against the rival (all sells - all buys): %.2f USDT\n", position_pnl(&pos));

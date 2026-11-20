@@ -1,11 +1,12 @@
 #include <stdio.h>
 #include "../shared/constant.h"
-#include "common/rival.h"
-#include "common/race.h"
+#include "../stageCrival/common/replay.h"
+#include "../stageCrival/common/rival.h"
+#include "../stageCrival/common/race.h"
 
 #if defined(demo_v0)
 #include "v0Bot.h"
-#define BOT_NAME = "V0 Bot"
+#define BOT_NAME "V0 Bot"
 #define BOT_STEP v0_step
 #define BOT_START() v0_reset()
 #define BOT_STOP() v0_close()
@@ -13,7 +14,7 @@
 #define BOT_NAME "FASTEST"
 #define BOT_STEP check_trade
 #define BOT_START() 1
-#define BOT_STOP() ((void), 0)
+#define BOT_STOP() ((void)0)
 #else
 #error "Build with -Ddemo_v0 or -Ddemo_fast (make run-demo BOT=v0|fast)"
 #endif
