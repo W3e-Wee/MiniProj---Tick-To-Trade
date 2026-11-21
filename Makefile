@@ -17,7 +17,6 @@ RACE_SRC = src/stageCrival/race_demo.c src/stageCrival/common/race.c $(REPLAY_SR
 STAGEC_SRC = src/stageC/stageC.c src/shared/parser.c src/stageCrival/common/rival.c $(REPLAY_SRC)
 RACE_SPEED = 10000
 RACE_LED = #for the rpi
- 
 # which bot the race window runs: make run-demo BOT=v0   or   make run-demo BOT=fast
 BOT = fast
 ifeq ($(BOT),v0)
@@ -27,10 +26,16 @@ else ifeq ($(BOT),fast)
 else
     $(error BOT must be v0 or fast)
 endif
- 
-.PHONY: clean rival rival-test rival-stress run-rival run-rival-test run-rival-stress plot-rival \
-        demo run-demo demov0 demofast run-demov0 run-demofast run-ladder-full
- 
+
+.PHONY: clean stage0 loop loop-o1 loop-o2 loop-o3 stage0_benchmark stage0_benchmark-o2 \
+        stageA stageA-test run-stageA run-stageA-test \
+        stageAplus run-stageAplus \
+        stageB stageB-test stageB-stress run-stageB ladder-test ladder-stress ladder-dev \
+        run-ladder-test run-ladder-stress run-ladder-dev run-ladder plot-ladder run-ladder-full \
+        stageC stageC-test stageC-stress run-stageC run-stageC-test run-stageC-stress \
+        rival rival-test rival-stress run-rival run-rival-test run-rival-stress plot-rival \
+        demov0 demofast run-demov0 run-demofast
+
 SUDO =
 # OS specfic checks to create the relevant folders
 ifeq ($(OS),Windows_NT)
@@ -110,8 +115,8 @@ stageAplus:
 	$(CC) -O2 $(INC) src/stage0/stage0_helper.c src/stageA_plus/stageAplus.c src/shared/parser.c -o $(STAGEAPLUS_DIR)/stageAplus
  
 run-stageAplus: stageAplus
-	./$(STAGEAPLUS_DIR)/stageAplus
- 
+	$(call fixpath,./$(STAGEAPLUS_DIR)/stageAplus) > $(call fixpath,$(STAGEAPLUS_DIR)/stageAplus_results.txt)
+
 # =====================================
 # Stage B build and execute commands
 # =====================================
@@ -146,25 +151,27 @@ ladder-dev:
 run-ladder-test: ladder-test
 	./$(STAGEB_DIR)/ladder_test
  
+	$(call fixpath,./$(STAGEB_DIR)/ladder_test) > $(call fixpath,$(STAGEB_DIR)/ladder_test_results.txt)
+
 run-ladder-stress: ladder-stress
-	./$(STAGEB_DIR)/ladder_stress
- 
+	$(call fixpath,./$(STAGEB_DIR)/ladder_stress) > $(call fixpath,$(STAGEB_DIR)/ladder_stress_results.txt)
+
 run-ladder-dev: ladder-dev
-	./$(STAGEB_DIR)/ladder_dev
- 
+	$(call fixpath,./$(STAGEB_DIR)/ladder_dev) > $(call fixpath,$(STAGEB_DIR)/ladder_dev_results.txt)
+
 # the full ladder: check on test20 first, then the stress_full.csv run
 run-ladder: ladder-test ladder-stress
 	@echo "--- test20 check: expect BUY at 7 and SELL at 10 for every version ---"
-	./$(STAGEB_DIR)/ladder_test
+	$(call fixpath,./$(STAGEB_DIR)/ladder_test) > $(call fixpath,$(STAGEB_DIR)/ladder_test_results.txt)
+
 	@echo "--- stress_full.csv ladder (takes a few minutes) ---"
-	./$(STAGEB_DIR)/ladder_stress
- 
+	$(call fixpath,./$(STAGEB_DIR)/ladder_stress) > $(call fixpath,$(STAGEB_DIR)/ladder_stress_results.txt)
+
 plot-ladder:
 	gnuplot plots/plot_ladder
 	@echo "Plotted ladder to ladder.png"
- 
+
 run-ladder-full: run-ladder plot-ladder
- 
 # =====================================
 # Stage C build and execute commands
 # =====================================
@@ -174,45 +181,48 @@ stageC:
  
 stageC-test:
 	$(call MKDIR,$(STAGEC_DIR))
+	$(call MKDIR,$(STAGEC_DIR))
 	$(CC) -O2 -DSHORT_WIN=3 -DLONG_WIN=5 -Ddata_file $(INC) $(STAGEC_SRC) -o $(STAGEC_DIR)/stageC_test
  
 stageC-stress:
 	$(call MKDIR,$(STAGEC_DIR))
+	$(call MKDIR,$(STAGEC_DIR))
 	$(CC) -O2 -Dstress_file $(INC) $(STAGEC_SRC) -o $(STAGEC_DIR)/stageC_stress
  
-run-stageC: stageC
-	./$(STAGEC_DIR)/stageC
+run-stageC: stageC stageC
+	$(call fixpath,./$(STAGEC_DIR)/stageC) > $(call fixpath,$(STAGEC_DIR)/stageC_results.txt)
  
 run-stageC-test: stageC-test
-	./$(STAGEC_DIR)/stageC_test
- 
+	$(call fixpath,./$(STAGEC_DIR)/stageC_test) > $(call fixpath,$(STAGEC_DIR)/stageC_test_results.txt)
+
 run-stageC-stress: stageC-stress
-	./$(STAGEC_DIR)/stageC_stress
- 
+	$(call fixpath,./$(STAGEC_DIR)/stageC_stress) > $(call fixpath,$(STAGEC_DIR)/stageC_stress_results.txt)
+
 # ===============================================
 # Stage C Rival Bot build and execute commands
 # ===============================================
 rival-test:
 	$(call MKDIR,$(STAGECRIVAL_DIR))
-	$(CC) -O2 -DSHORT_WIN=3 -DLONG_WIN=5 -Ddata_file $(INC) $(RIVAL_SRC) -lm -o $(STAGECRIVAL_DIR)/rival_test
+	$(CC) -O2 -DSHORT_WIN=3 -DLONG_WIN=5 -Ddata_file $(INC) $(RIVAL_SRC) -lm -lm -o $(STAGECRIVAL_DIR)/rival_test
  
 rival-stress:
 	$(call MKDIR,$(STAGECRIVAL_DIR))
-	$(CC) -O2 -Dstress_file $(INC) $(RIVAL_SRC) -lm -o $(STAGECRIVAL_DIR)/rival_stress
+	$(call MKDIR,$(STAGECRIVAL_DIR))
+	$(CC) -O2 -Dstress_file $(INC) $(RIVAL_SRC) -lm -lm -o $(STAGECRIVAL_DIR)/rival_stress
  
 rival: rival-test rival-stress
  
 run-rival-test: rival-test
-	./$(STAGECRIVAL_DIR)/rival_test
- 
+	$(call fixpath,./$(STAGECRIVAL_DIR)/rival_test) > $(call fixpath,$(STAGECRIVAL_DIR)/rival_test_results.txt)
+
 run-rival-stress: rival-stress
-	./$(STAGECRIVAL_DIR)/rival_stress
- 
+	$(call fixpath,./$(STAGECRIVAL_DIR)/rival_stress) > $(call fixpath,$(STAGECRIVAL_DIR)/rival_stress_results.txt)
+
 run-rival: rival-test rival-stress
 	@echo "--- test20 check: both bots must show BUY at 7 and SELL at 10 ---"
-	./$(STAGECRIVAL_DIR)/rival_test
+	$(call fixpath,./$(STAGECRIVAL_DIR)/rival_test) > $(call fixpath,$(STAGECRIVAL_DIR)/rival_test_results.txt)
 	@echo "--- stress_full.csv rival sweep ---"
-	./$(STAGECRIVAL_DIR)/rival_stress
+	$(call fixpath,./$(STAGECRIVAL_DIR)/rival_stress) > $(call fixpath,$(STAGECRIVAL_DIR)/rival_stress_results.txt)
 	@echo "--- plotting rival sweep ---"
 	gnuplot plots/plot_rival
  
