@@ -83,8 +83,8 @@ void print_summary(const ReplayStats *s, long long wall_ns)
     printf("\nReleased %d of %d trades\n", s->released, n_trades);
     printf("Market time covered:  %.1f s\n", market_s);
     printf("Expected wall time:   %.1f s  (market time / %d)\n", market_s / SPEED, SPEED);
-    printf("Actual wall time:     %.1f s\n", wall_ns / NS_PER_SEC);
-    printf("Worst lateness:       %.3f ms\n", s->max_lag / NS_PER_MS);
+    printf("Actual wall time:     %.1f s\n", (double)wall_ns / NS_PER_SEC);
+    printf("Worst lateness:       %.3f ms\n", (double)s->max_lag / NS_PER_MS);
     printf("Out-of-order trades:  %d\n", s->out_of_order);
     printf("BUY signals:          %d\n", s->buys);
     printf("SELL signals:         %d\n", s->sells);

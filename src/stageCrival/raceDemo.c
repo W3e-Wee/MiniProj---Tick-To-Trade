@@ -1,6 +1,5 @@
 #include <stdio.h>
 #include "../shared/constant.h"
-#include "../stageCrival/common/replay.h"
 #include "../stageCrival/common/rival.h"
 #include "../stageCrival/common/race.h"
 
@@ -30,7 +29,7 @@ int main(void)
     }
     if (!BOT_START())
     {
-        printf("Unable to open %s\n", DATA_FILE);
+        printf("Error: Unable to open %s\n", DATA_FILE);
         free_trades();
         return 1;
     }

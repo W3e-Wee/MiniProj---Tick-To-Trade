@@ -13,9 +13,9 @@ RIVAL_SRC = src/stageCrival/compareRival.c src/stageCrival/common/rival.c src/st
 V0_SRC = src/stageCrival/v0Bot.c src/stageCrival/common/rival.c src/shared/parser.c provided/trade_io.c
 FAST_SRC = src/stageCrival/common/rival.c src/shared/parser.c
 REPLAY_SRC = src/stageCrival/common/replay.c
-RACE_SRC = src/stageCrival/race_demo.c src/stageCrival/common/race.c $(REPLAY_SRC)
+RACE_SRC = src/stageCrival/raceDemo.c src/stageCrival/common/race.c $(REPLAY_SRC)
 STAGEC_SRC = src/stageC/stageC.c src/shared/parser.c src/stageCrival/common/rival.c $(REPLAY_SRC)
-RACE_SPEED = 10000
+RACE_SPEED = 1000
 RACE_LED = #for the rpi
 
 # which bot the race window runs: make run-demo BOT=v0   or   make run-demo BOT=fast

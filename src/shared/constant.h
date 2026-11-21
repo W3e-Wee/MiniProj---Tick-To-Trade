@@ -73,7 +73,7 @@
 #endif
 
 /* The live counter refreshes every 100 ms */
-#define STATUS_NS (100 * NS_PER_SEC)
+#define STATUS_NS (100 * NS_PER_MS)
 
 /* Stage C prints a progress line every 10 s */
 #define REPORT_EVERY_NS (10 * NS_PER_SEC)

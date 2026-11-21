@@ -92,4 +92,5 @@ int main(void)
 #ifdef stress_file
     write_ladder_dat(med);
 #endif
-    return
+    return 0;
+}

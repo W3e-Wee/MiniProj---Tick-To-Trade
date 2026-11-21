@@ -4,7 +4,35 @@
 #include "replay.h"
 #include "rival.h"
 #include "../../shared/constant.h"
-#include "../stageCrival/common/led_show.h"
+#include "../../stageCrival/common/led_show.h"
+
+/**
+ * Rewrites the live counter line in place (`\r` returns to the start of the line).
+ *
+ * @param bot The bot being raced
+ * @param st The statistics so far
+ * @param lag How late the latest trade came out (ns)
+ * @param pos The position, for the P&L shown
+ * @param last_sig The latest signal: `1` BUY, `-1` SELL, `0` none yet
+ */
+static void print_status(const Bot *bot, const ReplayStats *st, long long lag, const Position *pos, int last_sig)
+{
+    const char *last = "-   ";
+
+    if (last_sig == 1)
+    {
+        last = GREEN "BUY " RESET;
+    }
+    else if (last_sig == -1)
+    {
+        last = RED "SELL" RESET;
+    }
+
+    printf("\r%-7s: market %7.1f s | lag %10.3f ms | BUY %5d SELL %5d | P&L %11.2f | last %s ",
+           bot->name, (double)(st->prev_ts - st->first_ts) / US_PER_SEC, (double)lag / NS_PER_MS,
+           st->buys, st->sells, position_closed_pnl(pos), last);
+    fflush(stdout);
+}
 
 void run_race(const Bot *bot)
 {
@@ -54,19 +82,7 @@ void run_race(const Bot *bot)
 
         if (elapsed >= next_status)
         {
-            last = "-   ";
-            if (last_sig == 1)
-            {
-                last = GREEN "BUY " RESET;
-            }
-            else if (last_sig == -1)
-            {
-                last = RED "SELL" RESET;
-            }
-
-            printf("\r%-7s market %7.1f s | lag %10.3f ms | BUY %5d SELL %5d | P&L %11.2f | last %s ",
-                   bot->name, (st.prev_ts - st.first_ts) / 1e6, lag / 1e6, st.buys, st.sells,
-                   position_closed_pnl(&pos), last);
+            print_status(bot, &st, lag, &pos, last_sig);
             fflush(stdout);
             next_status = elapsed + STATUS_NS; /* the next print is 100 ms from now */
         }
