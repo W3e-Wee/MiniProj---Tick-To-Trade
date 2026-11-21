@@ -16,7 +16,7 @@ REPLAY_SRC = src/stageCrival/common/replay.c
 RACE_SRC = src/stageCrival/raceDemo.c src/stageCrival/common/race.c $(REPLAY_SRC)
 STAGEC_SRC = src/stageC/stageC.c src/shared/parser.c src/stageCrival/common/rival.c $(REPLAY_SRC)
 RACE_SPEED = 1000
-RACE_LED = #for the rpi
+RACE_LED = -Dshow_signals #for the rpi
 
 # which bot the race window runs: make run-demo BOT=v0   or   make run-demo BOT=fast
 BOT = fast
@@ -125,7 +125,7 @@ run-stageA-test: stageA-test
 	$(call fixpath,./$(STAGEA_DIR)/stageA_test) > $(call fixpath,$(STAGEA_DIR)/stageA_test_results.txt)
  
 # =====================================
-# Stage A+ build and execute commands
+#  Stage A+ build and execute commands
 # =====================================
 stageAplus: 
 	$(call MKDIR,$(STAGEAPLUS_DIR))
@@ -134,9 +134,9 @@ stageAplus:
 run-stageAplus: stageAplus
 	$(call fixpath,./$(STAGEAPLUS_DIR)/stageAplus) > $(call fixpath,$(STAGEAPLUS_DIR)/stageAplus_results.txt)
 
-# =====================================
-# Stage B build and execute commands
-# =====================================
+# ====================================
+#  Stage B build and execute commands
+# ====================================
 stageB: 
 	$(call MKDIR,$(STAGEB_DIR))
 	$(CC) -O2 $(INC) src/stageB/stageB.c src/shared/parser.c -o $(STAGEB_DIR)/stageB
@@ -158,9 +158,9 @@ run-stageB-test: stageB-test
 run-stageB-stress: stageB-stress
 	$(call fixpath,./$(STAGEB_DIR)/stageB_stress) > $(call fixpath,$(STAGEB_DIR)/stageB_stress_results.txt)
  
-# ==========================================
-# Ladder build, execute & plotting commands
-# ==========================================
+# ===========================================
+#  Ladder build, execute & plotting commands
+# ===========================================
 ladder-test:
 	$(call MKDIR,$(STAGEB_DIR))
 	$(CC) -O2 -DSHORT_WIN=3 -DLONG_WIN=5 -Ddata_file $(INC) src/stageB/ladder.c src/shared/parser.c provided/trade_io.c src/stage0/stage0_helper.c src/stageB/versions.c -o $(STAGEB_DIR)/ladder_test
@@ -196,9 +196,10 @@ plot-ladder:
 	@echo "Plotted ladder to ladder.png"
 
 run-ladder-full: run-ladder plot-ladder
-# =====================================
-# Stage C build and execute commands
-# =====================================
+
+# ====================================
+#  Stage C build and execute commands
+# ====================================
 stageC: 
 	$(call MKDIR,$(STAGEC_DIR))
 	$(CC) -O2 $(INC) $(STAGEC_SRC) -o $(STAGEC_DIR)/stageC
@@ -220,9 +221,9 @@ run-stageC-test: stageC-test
 run-stageC-stress: stageC-stress
 	$(call fixpath,./$(STAGEC_DIR)/stageC_stress) > $(call fixpath,$(STAGEC_DIR)/stageC_stress_results.txt)
 
-# ===============================================
-# Stage C Rival Bot build and execute commands
-# ===============================================
+# ==============================================
+#  Stage C Rival Bot build and execute commands
+# ==============================================
 rival-test:
 	$(call MKDIR,$(STAGECRIVAL_DIR))
 	$(CC) -O2 -DSHORT_WIN=3 -DLONG_WIN=5 -Ddata_file $(INC) $(RIVAL_SRC) -lm -o $(STAGECRIVAL_DIR)/rival_test
@@ -239,20 +240,22 @@ run-rival-test: rival-test
 run-rival-stress: rival-stress
 	$(call fixpath,./$(STAGECRIVAL_DIR)/rival_stress) > $(call fixpath,$(STAGECRIVAL_DIR)/rival_stress_results.txt)
 
+plot-rival:
+	gnuplot plots/plot_rival
+
 run-rival: rival-test rival-stress
 	@echo "--- test20 check: both bots must show BUY at 7 and SELL at 10 ---"
 	$(call fixpath,./$(STAGECRIVAL_DIR)/rival_test) > $(call fixpath,$(STAGECRIVAL_DIR)/rival_test_results.txt)
+	
 	@echo "--- stress_full.csv rival sweep ---"
 	$(call fixpath,./$(STAGECRIVAL_DIR)/rival_stress) > $(call fixpath,$(STAGECRIVAL_DIR)/rival_stress_results.txt)
+	
 	@echo "--- plotting rival sweep ---"
 	gnuplot plots/plot_rival
  
-plot-rival:
-	gnuplot plots/plot_rival
- 
-# ===============================================
-# Race window: the bot is picked with BOT=v0 or BOT=fast
-# ===============================================
+# ========================================================
+#  Race window: the bot is picked with BOT=v0 or BOT=fast
+# ========================================================
 demo:
 	$(call MKDIR,$(STAGECRIVAL_DIR))
 	$(CC) -O2 -Dstress_file -Ddemo_$(BOT) -DSPEED=$(RACE_SPEED) $(RACE_LED) $(INC) $(RACE_SRC) $(DEMO_SRC) -o $(STAGECRIVAL_DIR)/demo_$(BOT)
