@@ -3,14 +3,9 @@
 #include "timing.h"
 #include "../shared/trade.h"
 #include "../shared/constant.h"
-#include "../shared/led_show.h"
+#include "../stageCrival/common/led_show.h"
 #include "../stageCrival/common/rival.h"
 #include "../stageCrival/common/replay.h"
-
-/* ---- constants ---- */
-#define NS_PER_SEC 1000000000LL
-#define REPORT_EVERY_NS (10 * NS_PER_SEC) /* progress line every 10 s */
-#define TIMER_TEST_CALLS 1000
 
 /* shows one signal on the LED and in colour on the terminal (1 = BUY, -1 = SELL) */
 #ifdef show_signals

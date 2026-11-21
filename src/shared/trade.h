@@ -29,7 +29,7 @@ static inline long long to_fx(double p)
 }
 
 /*********************************/
-/* Trade reset                   */
+/* Set Trade values              */
 /*********************************/
 static inline void trade_fill(Trade *t, long long ts, double p, double q, int is_buy)
 {

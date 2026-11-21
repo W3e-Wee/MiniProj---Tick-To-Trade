@@ -9,7 +9,8 @@
 /* For sweep(): R from 0.1 us to 100 us, 20 steps per factor of 10 */
 #define SWEEP_MIN_US 0.1
 #define SWEEP_STEPS_PER_DECADE 20
-#define SWEEP_STEPS 60
+#define SWEEP_DECADES 3
+#define SWEEP_STEPS (SWEEP_DECADES * SWEEP_STEPS_PER_DECADE)
 #define SWEEP_PRINT_EVERY 10
 #define RIVAL_DAT "compiled/stageC_rival/rival.dat"
 
@@ -22,20 +23,20 @@ typedef struct
     Signal sig[MAX_SIGNALS];
     int n_sig;
     int dropped;
-} Bot;
+} CompareBot;
 
-static Bot v0_bot = {"V0 bot", v0_reset, v0_step, v0_close};
-static Bot fast_bot = {"Fast bot", NULL, check_trade, NULL};
+static CompareBot v0_bot = {"V0 bot", v0_reset, v0_step, v0_close};
+static CompareBot fast_bot = {"Fast bot", NULL, check_trade, NULL};
 
 /**
  * Runs one bot (v0/fast) over every trade.
  *
- * @param b A `Bot` pointer to hold functios and value of each bot
+ * @param b A `CompareBot` pointer to hold functios and value of each bot
  *
  * @return
  * `1` - Run was successful; `0` - Run cannot start.
  */
-static int run_bot(Bot *b)
+static int run_bot(CompareBot *b)
 {
     b->n_sig = 0;
     b->dropped = 0;
@@ -79,12 +80,12 @@ static int run_bot(Bot *b)
 /**
  * P&L of one bot's signals for a rival reaction time (r_ns)
  *
- * @param b A `Bot` struct containing funtions and values to run the bot
+ * @param b A `CompareBot` struct containing funtions and values to run the bot
  * @param r_ns The rival reaction time
  *
  * @return The P&L of the bot
  */
-static double pnl_for(const Bot *b, double r_ns)
+static double pnl_for(const CompareBot *b, double r_ns)
 {
     Position pos;
 
@@ -99,14 +100,15 @@ static double pnl_for(const Bot *b, double r_ns)
 }
 
 /**
- * Checks for how many signals did the rival beat. (Bot reaction time < rival reaction time)
+ * Checks for how many signals did the rival beat.
+ * Counts signal where rival is faster.
  *
- * @param b A `Bot` pointer containing the function and values of each bot
+ * @param b A `CompareBot` pointer containing the function and values of each bot
  * @param r_ns The rival reaction time
  *
  * @return The total number of signals that the rival beat the bot.
  */
-static int races_lost(const Bot *b, double r_ns)
+static int races_lost(const CompareBot *b, double r_ns)
 {
     int lost = 0;
 
@@ -125,13 +127,13 @@ static int races_lost(const Bot *b, double r_ns)
 /**
  * Checks if same signal was raised for each bot.
  *
- * @param a The rival bot
- * @param b The bot pitted against the rival (v0/fast)
+ * @param a First bot
+ * @param b Second bot
  *
  * @return `1` - Boths bot raised the same signals (same trade, same sides).
  * `0` - Different signals raised
  */
-static int same_signals(const Bot *a, const Bot *b)
+static int same_signals(const CompareBot *a, const CompareBot *b)
 {
     if (a->n_sig != b->n_sig)
     {
@@ -149,7 +151,7 @@ static int same_signals(const Bot *a, const Bot *b)
 }
 
 /* Outputs average and worst timings for each bot version */
-static void print_reaction(const Bot *b)
+static void print_reaction(const CompareBot *b)
 {
     long long sum = 0, worst = 0;
 
@@ -170,7 +172,7 @@ static void print_reaction(const Bot *b)
  * For test_20 build only.
  * Lists every signal.
  */
-static void print_signals(const Bot *b)
+static void print_signals(const CompareBot *b)
 {
     for (int i = 0; i < b->n_sig; i++)
     {
@@ -184,7 +186,7 @@ static void print_signals(const Bot *b)
  * Runs each bot version against R from 0.1 to 100us.
  * Prints the P&L of each version of the bot.
  */
-static void sweep(const Bot *a, const Bot *b)
+static void sweep(const CompareBot *a, const CompareBot *b)
 {
     FILE *out = NULL;
 
@@ -200,8 +202,8 @@ static void sweep(const Bot *a, const Bot *b)
     for (int k = 0; k <= SWEEP_STEPS; k++)
     {
         double r_us = SWEEP_MIN_US * pow(10.0, (double)k / SWEEP_STEPS_PER_DECADE);
-        double pnl_a = pnl_for(a, r_us * 1000.0);
-        double pnl_b = pnl_for(b, r_us * 1000.0);
+        double pnl_a = pnl_for(a, r_us * NS_PER_US);
+        double pnl_b = pnl_for(b, r_us * NS_PER_US);
 
         if (k % SWEEP_PRINT_EVERY == 0)
         {
@@ -223,10 +225,11 @@ static void sweep(const Bot *a, const Bot *b)
  * Similar to `sweep`.
  * It also outputs how many races each version lost to R as well as the money lost by v0 against fast.
  */
-static int compare_bots(Bot *a, Bot *b)
+static int compare_bots(CompareBot *a, CompareBot *b)
 {
     printf("Running the V0 bot (helper library + naive SMA)... \n");
     fflush(stdout);
+
     if (!run_bot(a))
     {
         printf("Error: V0 bot could not open %s\n", DATA_FILE);
@@ -236,11 +239,12 @@ static int compare_bots(Bot *a, Bot *b)
 
     printf("Running the fast bot (malloc array + running-sum fixed point)... \n");
     fflush(stdout);
+
     if (!run_bot(b))
     {
         printf("Error: fast bot could not start\n");
         return 1;
-    };
+    }
     printf("Done\n\n");
 
 #ifdef data_file
@@ -267,7 +271,7 @@ static int compare_bots(Bot *a, Bot *b)
     /* Standard Rival: R = 1 us */
     double pnl_a = pnl_for(a, RIVAL_NS);
     double pnl_b = pnl_for(b, RIVAL_NS);
-    printf("\nR = 1 us:  V0 P&L %.2f   fast P&L %.2f\n Money lost by V0 = %.2f USDT\n", pnl_a, pnl_b, pnl_b - pnl_a);
+    printf("\nR = %,1fus:  V0 P&L %.2f   fast P&L %.2f\n Money lost by V0 = %.2f USDT\n", RIVAL_NS / NS_PER_US, pnl_a, pnl_b, pnl_b - pnl_a);
     printf("           Races lost to the rival: V0 - %d of %d | Fast - %d of %d\n",
            races_lost(a, RIVAL_NS), a->n_sig, races_lost(b, RIVAL_NS), b->n_sig);
 

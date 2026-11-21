@@ -5,7 +5,14 @@
 #include "../shared/signal.h"
 #include "../stageB/versions.h"
 
-/* File specifc constants */
+/*
+ * The Stage B ladder (V0 to V4).
+ * Each rung changes exactly one thing from the rung before it,
+ * so speedups between the rungs can be deduced from each change.
+ * Every rung returns the same BUY/SELL counts and VWAP.
+ */
+
+/* Signals are printed only in the test20 build, where the expected output is known */
 #if defined(data_file)
 #define LOG_SIGNALS 1
 #else
@@ -26,13 +33,17 @@ const VersionRun versions[VERSIONS] = {
     {"V3 + fixed-point prices", run_v3},
     {"V4 + processing from memory", run_v4},
 };
+
+/* Used only in run_v4. Is static as MAX_TRADES entries are too big for the stack */
 static Trade trades[MAX_TRADES];
 
+/* Lets V0 & V1 share a loop. Returns 1 if trade read; 0 at end of file */
 typedef int (*parse_fn)(FILE *fp, double *p, double *q);
 
 /*********************************/
 /* Local Helper Functions        */
 /*********************************/
+
 static void tally(int sig, int trade_no, Result *res)
 {
     tally_signal(sig, &res->buys, &res->sells);
@@ -41,6 +52,7 @@ static void tally(int sig, int trade_no, Result *res)
         LOG_SIGNAL(sig == 1 ? "BUY" : "SELL", trade_no);
 }
 
+/* Clears *res to allow each rung to have clean start */
 static FILE *open_data_file(Result *res)
 {
     *res = (Result){0};
@@ -50,9 +62,14 @@ static FILE *open_data_file(Result *res)
     return fp;
 }
 
+/**
+ * The signature has to match `parse_fn`.
+ * `fp` is unused because the helper library keeps its own file open.
+ * The cast to void silences unused-parameter warning;
+ */
 static int parse_helper(FILE *fp, double *p, double *q)
 {
-    (void)fp; /* sscanf doesn't use fp so without this will trigger a warning */
+    (void)fp;
     if (!next_trade())
         return 0;
     *p = trade_price();
@@ -67,6 +84,9 @@ static int parse_fast(FILE *fp, double *p, double *q)
     return fast_parser(fp, &ts, p, q, &is_buy);
 }
 
+/**
+ * Loop shared by V0 and V1 since they only differ in the parser.
+ */
 static inline void naive_loop(FILE *fp, parse_fn parse, Result *res)
 {
     Vwap vwap = {0};

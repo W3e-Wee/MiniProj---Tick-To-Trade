@@ -39,7 +39,7 @@ static long long sum_short = 0, sum_long = 0, d_prev = 0;
 static int count_trades(const char *path)
 {
     FILE *fp = fopen(path, "r");
-    char line[256];
+    char line[MAX_LINES];
     int n = 0;
 
     if (fp == NULL)

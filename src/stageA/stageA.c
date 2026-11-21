@@ -22,7 +22,7 @@ typedef struct
 
 static void compute_ohlc(OhlcBar *bar, long long *cur_sec, int *bar_trades, double price)
 {
-    long long sec = trade_time() / 1000000;
+    long long sec = trade_time() / US_PER_SEC;
     if (sec != *cur_sec)
     {
         if (*bar_trades > 0)
@@ -67,7 +67,7 @@ int main(void)
     /* Using DATA_FILE as original is hardcoded to test.cv making 30 60 run for 20 lines only*/
     if (!open_trades(DATA_FILE))
     {
-        printf("Error: Unable to open %s", DATA_FILE);
+        printf("Error: Unable to open %s\n", DATA_FILE);
         return 1;
     }
 
@@ -76,6 +76,7 @@ int main(void)
     if (out == NULL)
     {
         printf("Error: Unable to open %s\n", PLOT_FILE);
+        close_trades();
         return 1;
     }
 

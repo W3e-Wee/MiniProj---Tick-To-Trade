@@ -3,8 +3,8 @@
 #include "race.h"
 #include "replay.h"
 #include "rival.h"
-#include "../../shared/led_show.h"
 #include "../../shared/constant.h"
+#include "../stageCrival/common/led_show.h"
 
 void run_race(const Bot *bot)
 {
