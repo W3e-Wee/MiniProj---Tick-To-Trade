@@ -1,13 +1,8 @@
 #include <stdio.h>
-// Provided
 #include "timing.h"
-// Self made
-#include "parser.h"
+#include "../shared/parser.h"
+#include "../shared/constant.h"
 #include "../stage0/stage0_helper.h"
-
-#define TEST_FILE "data/Group05/test20.csv"
-#define STRESS_FILE "data/stress_full.csv"
-#define RUNS 5
 
 /**
  * Times `sscanf` using the stress file per pass.
@@ -86,7 +81,7 @@ int main(void)
 
     /* Timing var */
     int rows = 0, mismatches = 0;
-    uint64_t slow[RUNS], fast[RUNS];
+    uint64_t slow[BENCH_RUNS], fast[BENCH_RUNS];
     uint64_t slow_median, fast_median;
     double total_slow = 0.0, total_fast = 0.0;
 
@@ -103,16 +98,17 @@ int main(void)
     {
         rows++;
         printf("%d %lld %.8f %.8f %d\n", rows, ts2, p2, q2, b2);
-        if (ts1 != ts2 || p1 != p2 || q1 != q2 || b1 != b2) // Check for mismatches while reading file
+        // Check for mismatches while reading file
+        if (ts1 != ts2 || p1 != p2 || q1 != q2 || b1 != b2)
         {
             mismatches++;
         }
     }
 
-    /* Loop ends: Both parser must have hit end of file together */
+    // Checks if any parser ended earlier
     if ((ra != 0) != (rb != 0))
     {
-        mismatches++; // Checks if any parser ended earlier
+        mismatches++;
     }
 
     fclose(fa);
@@ -122,27 +118,27 @@ int main(void)
     fa = fopen(STRESS_FILE, "r");
     if (fa == NULL)
     {
-        printf("cannot open %s\n", STRESS_FILE);
+        printf("Error: Unale to open %s\n", STRESS_FILE);
         return 1;
     }
     fclose(fa);
 
-    /* check 2: Time both parsers on the full file, 5 runs each */
-    for (int r = 0; r < RUNS; r++)
+    /* Time both parsers on the full file, 5 runs each */
+    for (int r = 0; r < BENCH_RUNS; r++)
     {
         slow[r] = time_sscanf(&total_slow);
         fast[r] = time_fast(&total_fast);
     }
-    slow_median = median(slow, RUNS);
-    fast_median = median(fast, RUNS);
+    slow_median = median(slow, BENCH_RUNS);
+    fast_median = median(fast, BENCH_RUNS);
 
     printf("==============================\n");
     printf("Stress_full.csv Benchmarks:\n");
     printf("==============================\n");
-    printf("Median(ms): sscanf parser = %.3f    fast parser = %.3f\n", slow_median / 1e6, fast_median / 1e6);
+    printf("Median(ms): sscanf parser = %.3f    fast parser = %.3f\n", (double)slow_median / NS_PER_MS, (double)fast_median / NS_PER_MS);
     printf("Median(ns): sscanf parser = %llu   fast parser = %llu\n", slow_median, fast_median);
     printf("Speedup = %.2fx\n", (double)slow_median / (double)fast_median);
     printf("Checksums: %.8f and %.8f (%s)\n", total_slow, total_fast,
-           total_slow == total_fast ? "\033[32mMATCH\033[0m" : "\033[31mDIFFERENT\033[0m");
+           total_slow == total_fast ? "MATCH" : "DIFFERENT");
     return 0;
 }

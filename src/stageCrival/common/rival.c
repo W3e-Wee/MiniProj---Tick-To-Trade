@@ -3,26 +3,32 @@
 #include "rival.h"
 #include "../../shared/constant.h"
 #include "../../shared/trade.h"
-#include "../../stageA_plus/parser.h"
+#include "../../shared/parser.h"
+#include "../../shared/signal.h"
 
 /* Stage C item 6: the rival bot.
-   This file has the P&L (declared in rival.h), which v0malloc.c and vfastestmalloc.c use
-   for their own race windows, and the compare, which runs both bots and scores them against the rival.
 
-   Three files have a main, and the -D flag switches on only one of them:
-     no flag       rival.c            the compare
-     -Ddemo_v0     v0malloc.c         race window 1
-     -Ddemo_fast   vfastestmalloc.c   race window 2 */
+   This file holds the pieces both bots and the race windows share:
+     - loading the trades into memory (malloc)
+     - check_trade(): the BUY/SELL decision for one trade
+     - the P&L: positions, the price a bot gets for a signal, and the profit
 
-#define MAX_SIGNALS 200000 /* stress_full.csv has about 40,000 signals */
-#define STEPS 60           /* the sweep: 60 steps from 0.1 us to 100 us = 20 steps per factor of 10 */
+   The three programs that use it live in other files:
+     compareRival.c    the compare: runs both bots and scores them against the rival
+     v0malloc.c        race window 1
+     vfastestmalloc.c  race window 2 */
 
 Trade *trades = NULL;
 int n_trades = 0;
 static long long sum_short = 0, sum_long = 0, d_prev = 0;
 
+/*********************************/
+/* Loading trades                */
+/*********************************/
+
 /**
  * Get total number of trades in the file.
+ * Lines that start with digit will count, header lines are skipped.
  *
  * @param path File path to trades data.
  *
@@ -33,7 +39,7 @@ static long long sum_short = 0, sum_long = 0, d_prev = 0;
 static int count_trades(const char *path)
 {
     FILE *fp = fopen(path, "r");
-    char line[256];
+    char line[MAX_LINES];
     int n = 0;
 
     if (fp == NULL)
@@ -42,7 +48,8 @@ static int count_trades(const char *path)
     }
     while (fgets(line, sizeof line, fp) != NULL)
     {
-        if (line[0] >= '0' && line[0] <= '9') /* a trade line starts with a digit; a header does not */
+        /* a trade line starts with a digit; a header does not */
+        if (line[0] >= '0' && line[0] <= '9')
         {
             n++;
         }
@@ -52,8 +59,19 @@ static int count_trades(const char *path)
 }
 
 /**
- * Uses malloc to dynamically allocate memory size.
- * For Stage C codes only.
+ * Frees up memory used to store trades data.
+ * Resets `trades` and `n_trades` value.
+ */
+void free_trades(void)
+{
+    free(trades);
+    trades = NULL;
+    n_trades = 0;
+}
+
+/**
+ * Loads every trade in the file into `trades[]`.
+ * The array is sized by `count_trades`, so it only reserves what file needs.
  *
  * @param path The file path to trade data
  *
@@ -69,50 +87,49 @@ int load_trades(const char *path)
     int b;
     int count;
 
+    /* Start clean */
+    free_trades();
+
     count = count_trades(path);
     if (count <= 0)
-    {
         return 0;
-    }
+
     trades = malloc(count * sizeof(Trade));
     if (trades == NULL)
     {
-        printf("not enough memory\n");
+        printf("Error: Not enough memory\n");
         return 0;
     }
 
     fp = fopen(path, "r");
     if (fp == NULL)
     {
+        printf("Error: Unable to read %s", path);
+        /* Does not leave unused array allocated */
+        free_trades();
         return 0;
     }
+
     while (n_trades < count && fast_parser(fp, &ts, &p, &q, &b))
     {
-        trades[n_trades].ts_us = ts;
-        trades[n_trades].price = p;
-        trades[n_trades].qty = q;
-        trades[n_trades].price_fx = (long long)(p * 100 + 0.5);
-        trades[n_trades].is_buy = b;
+        trade_fill(&trades[n_trades], ts, p, q, b);
         n_trades++;
     }
     fclose(fp);
-    return 1;
+    return n_trades > 0;
 }
 
-/**
- * Frees up memory used to store trades data.
- * Resets `trades` and `n_trades` value.
- */
-void free_trades(void)
-{
-    free(trades);
-    trades = NULL;
-    n_trades = 0;
-}
+/*********************************/
+/* Signal check                  */
+/*********************************/
 
 /**
  * Gets the current trade index and updates the sum to decide the output signal.
+ * Both SMAS are running-sums in fixed point and difference is cross-multiplied.
+ * No division involved, must be called sequentially.
+ *
  * @param i The current trade index
+ *
  * @returns `1` - BUY signal | `-1` - SELL signal | `0` - Nothing
  */
 int check_trade(int i)
@@ -120,8 +137,13 @@ int check_trade(int i)
     long long d;
     int sig = 0;
 
+    /* New replay, clears prev state */
+    if (i == 0)
+        sum_short = sum_long = 0;
+
     sum_short += trades[i].price_fx;
     sum_long += trades[i].price_fx;
+
     if (i >= SHORT_WIN)
     {
         sum_short -= trades[i - SHORT_WIN].price_fx; /* the price leaving the short window */
@@ -136,26 +158,32 @@ int check_trade(int i)
         d = sum_short * LONG_WIN - sum_long * SHORT_WIN; /* same sign as short SMA - long SMA, no division */
         if (i + 1 > LONG_WIN)                            /* we need a previous d to compare with */
         {
-            if (d_prev >= 0 && d < 0)
-            {
-                sig = -1;
-            }
-            else if (d_prev <= 0 && d > 0)
-            {
-                sig = 1;
-            }
+            sig = check_signal_fx(d_prev, d);
         }
         d_prev = d;
     }
     return sig;
 }
 
-/* ---- the P&L: used by the compare and by both race windows ---- */
+/*********************************/
+/* The P&L                       */
+/* used by the compare and by    */
+/* both race windows             */
+/*********************************/
+
+/**
+ * Converts fixed-point to USDT
+ *
+ * @param fx Amount stored as price * PRICE_SCALE
+ *
+ * @return The USDT amount
+ */
 static double fx_to_usdt(long long fx)
 {
     return (double)fx / PRICE_SCALE;
 }
 
+/* Resets all starting position */
 void position_start(Position *pos)
 {
     pos->buy_total = 0;
@@ -164,21 +192,34 @@ void position_start(Position *pos)
     pos->holding = 0;
 }
 
-/* react_ns < r_ns : the bot is faster than the rival, so it trades at the price of trade idx.
-   otherwise       : the rival wins, so the bot trades at the price of the NEXT trade. */
-long long fill_price(int idx, long long react_ns, double r_ns)
+int rival_wins(int idx, long long react_ns, double r_ns)
 {
-    if (react_ns < r_ns)
-    {
-        return trades[idx].price_fx;
-    }
-    if (idx + 1 < n_trades)
-    {
-        return trades[idx + 1].price_fx;
-    }
-    return trades[idx].price_fx; /* there is no next trade, so use the trigger's price */
+    return react_ns >= r_ns && idx + 1 < n_trades;
 }
 
+/**
+ * The price a bot gets for signal raised by `idx`.
+ *
+ * @param idx The trade index raising the signal
+ * @param react_ns The reaction time of the bot
+ * @param r_ns Reaction time of rival
+ *
+ * @return The fill price
+ */
+long long fill_price(int idx, long long react_ns, double r_ns)
+{
+    return trades[rival_wins(idx, react_ns, r_ns) ? idx + 1 : idx].price_fx;
+}
+
+/**
+ * Applies one signal per position.
+ * BUY only when no BTC.
+ * SELL only when we hold one.
+ *
+ * @param pos The position to update
+ * @param side `1` BUY | `-1` SELL
+ * @param price The fill price of the signal
+ */
 void apply_signal(Position *pos, int side, long long price)
 {
     if (side == 1 && !pos->holding)
@@ -194,18 +235,33 @@ void apply_signal(Position *pos, int side, long long price)
     }
 }
 
+/**
+ * Total P&L. Takes into account unsold BTC.
+ *
+ * @param pos The position to read
+ *
+ * @return The P&L in USDT
+ */
 double position_pnl(const Position *pos)
 {
-    return (double)(pos->sell_total - pos->buy_total) / 100.0;
+    return fx_to_usdt(pos->sell_total - pos->buy_total);
 }
 
+/**
+ * Same P&L but doesnt take into account unsold BTC.
+ *
+ * @param pos The position to read
+ *
+ * @return The P&L in USDT
+ */
 double position_closed_pnl(const Position *pos)
 {
     long long buys = pos->buy_total;
 
     if (pos->holding)
     {
+        /* leave out BTC that is held */
         buys -= pos->last_buy;
     }
-    return (double)(pos->sell_total - buys) / 100.0;
+    return fx_to_usdt(pos->sell_total - buys);
 }

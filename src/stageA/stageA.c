@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include "trade_io.h"
 #include "../shared/constant.h"
-#include "../shared/trade.h"
+#include "../shared/signal.h"
 
 /* Plot specific constans */
 #ifdef data_file
@@ -22,7 +22,7 @@ typedef struct
 
 static void compute_ohlc(OhlcBar *bar, long long *cur_sec, int *bar_trades, double price)
 {
-    long long sec = trade_time() / 1000000;
+    long long sec = trade_time() / US_PER_SEC;
     if (sec != *cur_sec)
     {
         if (*bar_trades > 0)
@@ -42,28 +42,11 @@ static void compute_ohlc(OhlcBar *bar, long long *cur_sec, int *bar_trades, doub
     (*bar_trades)++;
 }
 
-static double sma(const double *buf, int window)
-{
-    double sum = 0.0;
-    int i;
-    for (i = 0; i < window; i++)
-        sum += buf[i];
-    return sum / window;
-}
-
-static int get_signal(double d, double d_prev)
-{
-    if (d_prev >= 0 && d < 0)
-        return -1;
-    if (d_prev <= 0 && d > 0)
-        return 1;
-    return 0;
-}
-
 int main(void)
 {
     /*VWAP */
-    double sum_pq = 0.0, sum_q = 0.0, vwap = 0.0;
+    Vwap v = {0};
+    double vwap = 0.0;
 
     /*OHLC */
     OhlcBar bar = {0};
@@ -79,12 +62,12 @@ int main(void)
     /* Buy Sell Signals VAR */
     double d = 0.0, d_prev = 0.0;
     int trade_signal = 0;
-    int buy_count = 0, sell_count = 0;
+    int buys = 0, sells = 0;
 
     /* Using DATA_FILE as original is hardcoded to test.cv making 30 60 run for 20 lines only*/
     if (!open_trades(DATA_FILE))
     {
-        printf("Error: Unable to open dev_1M at %s", DATA_FILE);
+        printf("Error: Unable to open %s\n", DATA_FILE);
         return 1;
     }
 
@@ -92,49 +75,50 @@ int main(void)
     FILE *out = fopen(PLOT_FILE, "w");
     if (out == NULL)
     {
-        printf("cannot open %s\n", PLOT_FILE);
+        printf("Error: Unable to open %s\n", PLOT_FILE);
+        close_trades();
         return 1;
     }
 
     while (next_trade())
     {
 
-        /*Compute VWAP*/
         double p = trade_price();
         double q = trade_qty();
 
-        sum_pq += p * q;
-        sum_q += q;
-
-        vwap = sum_pq / sum_q;
+        /* Compute per trade VWAP */
+        vwap_add(&v, p, q);
+        vwap = vwap_value(&v);
 
         /*Compute OHLC*/
         compute_ohlc(&bar, &cur_sec, &bar_trades, p);
 
         /*Compute SMA*/
-        /* Store the prices in the 30, 60 array */
+        /* Circular window to get latest SHORT and LONG trades */
         short_prices[count % SHORT_WIN] = p;
         long_prices[count % LONG_WIN] = p;
         count++;
 
-        if (count >= SHORT_WIN)
-            sma_short = sma(short_prices, SHORT_WIN);
-        if (count >= LONG_WIN)
-            sma_long = sma(long_prices, LONG_WIN);
-
-        /* Adding BUY/SELL Signals*/
         trade_signal = 0;
+
+        if (count >= SHORT_WIN)
+        {
+            /* Calculate Short SMA */
+            sma_short = dble_sma(short_prices, SHORT_WIN);
+        }
+
         if (count >= LONG_WIN)
         {
-            d = sma_short - sma_long;
+            /* Calculate Long SMA */
+            sma_long = dble_sma(long_prices, LONG_WIN);
+
+            /* Get crossover signal  */
+            d = snap_to_zero(sma_short - sma_long);
 
             if (count > LONG_WIN)
             {
-                trade_signal = get_signal(d, d_prev);
-                if (trade_signal == 1)
-                    buy_count++;
-                if (trade_signal == -1)
-                    sell_count++;
+                trade_signal = check_signal_d(d_prev, d);
+                tally_signal(trade_signal, &buys, &sells);
                 if (trade_signal != 0)
                     printf("trade %d: %s\n", count, trade_signal == 1 ? "BUY" : "SELL");
             }
@@ -151,7 +135,7 @@ int main(void)
     fclose(out);
 
     /*Print total buy and sell */
-    printf("\033[32mBUY\033[0m = %d, \033[31mSELL\033[0m = %d\n", buy_count, sell_count);
+    printf("BUY = %d, SELL = %d\n", buys, sells);
 
     printf("VWAP = %.8f\n", vwap);
     if (bar_trades > 0)

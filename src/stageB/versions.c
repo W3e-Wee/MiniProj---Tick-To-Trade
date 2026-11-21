@@ -1,28 +1,29 @@
 #include "trade_io.h"
 #include "../shared/constant.h"
 #include "../shared/trade.h"
-#include "../stageA_plus/parser.h"
+#include "../shared/parser.h"
+#include "../shared/signal.h"
 #include "../stageB/versions.h"
 
-/* BUY/SELL rule: 1 = BUY, -1 = SELL, 0 = nothing.
-   Works for both double and long long differences.
-   Only pass plain variables (the arguments are used more than once). */
-#define CHECK_SIGNAL(d_prev, d) \
-    (((d_prev) >= 0 && (d) < 0) ? -1 : (((d_prev) <= 0 && (d) > 0) ? 1 : 0))
+/*
+ * The Stage B ladder (V0 to V4).
+ * Each rung changes exactly one thing from the rung before it,
+ * so speedups between the rungs can be deduced from each change.
+ * Every rung returns the same BUY/SELL counts and VWAP.
+ */
 
-/* File specifc constants */
+/* Signals are printed only in the test20 build, where the expected output is known */
 #if defined(data_file)
 #define LOG_SIGNALS 1
 #else
 #define LOG_SIGNALS 0
 #endif
 
-#define PRICE_SCALE 100000000LL
-#define LOG_SIGNAL(name, n)               \
-    do                                    \
-    {                                     \
-        if (LOG_SIGNALS)                  \
-            printf(name " at %d\n", (n)); \
+#define LOG_SIGNAL(name, n)                    \
+    do                                         \
+    {                                          \
+        if (LOG_SIGNALS)                       \
+            printf("%s at %d\n", (name), (n)); \
     } while (0)
 
 const VersionRun versions[VERSIONS] = {
@@ -32,82 +33,95 @@ const VersionRun versions[VERSIONS] = {
     {"V3 + fixed-point prices", run_v3},
     {"V4 + processing from memory", run_v4},
 };
+
+/* Used only in run_v4. Is static as MAX_TRADES entries are too big for the stack */
 static Trade trades[MAX_TRADES];
+
+/* Lets V0 & V1 share a loop. Returns 1 if trade read; 0 at end of file */
+typedef int (*parse_fn)(FILE *fp, double *p, double *q);
 
 /*********************************/
 /* Local Helper Functions        */
 /*********************************/
 
-/**
- * Based on `sig` value to add to BUY/SELL count.
- *
- * @param sig The SMA signal of the trade.
- * @param trade_no Trade Id.
- * @param res A `Result` struct that tracks BUY/SELL count.
- *
- */
 static void tally(int sig, int trade_no, Result *res)
 {
-    (void)trade_no; /* only used in the test20 build; this stops an "unused" warning otherwise */
-    if (sig == 1)
-    {
-        res->buys++;
-        LOG_SIGNAL("BUY", trade_no);
-    }
-    else if (sig == -1)
-    {
-        res->sells++;
-        LOG_SIGNAL("SELL", trade_no);
-    }
+    tally_signal(sig, &res->buys, &res->sells);
+
+    if (sig != 0)
+        LOG_SIGNAL(sig == 1 ? "BUY" : "SELL", trade_no);
+}
+
+/* Clears *res to allow each rung to have clean start */
+static FILE *open_data_file(Result *res)
+{
+    *res = (Result){0};
+    FILE *fp = fopen(DATA_FILE, "r");
+    if (fp == NULL)
+        printf("Error: Unable to read %s\n", DATA_FILE);
+    return fp;
 }
 
 /**
- * Rounding double difference to become 0.
- *
- * @param d The double difference to round off
- *
- * @return Rounded difference or `d`
+ * The signature has to match `parse_fn`.
+ * `fp` is unused because the helper library keeps its own file open.
+ * The cast to void silences unused-parameter warning;
  */
-static double snap_to_zero(double d)
+static int parse_helper(FILE *fp, double *p, double *q)
 {
-    if (d > -TOLERANCE && d < TOLERANCE)
+    (void)fp;
+    if (!next_trade())
+        return 0;
+    *p = trade_price();
+    *q = trade_qty();
+    return 1;
+}
+
+static int parse_fast(FILE *fp, double *p, double *q)
+{
+    long long ts;
+    int is_buy;
+    return fast_parser(fp, &ts, p, q, &is_buy);
+}
+
+/**
+ * Loop shared by V0 and V1 since they only differ in the parser.
+ */
+static inline void naive_loop(FILE *fp, parse_fn parse, Result *res)
+{
+    Vwap vwap = {0};
+    double short_prices[SHORT_WIN];
+    double long_prices[LONG_WIN];
+    double sma_short = 0.0, sma_long = 0.0, d = 0.0, d_prev = 0.0;
+    double p, q;
+    int count = 0;
+
+    while (parse(fp, &p, &q))
     {
-        return 0.0;
+        vwap_add(&vwap, p, q);
+
+        /* Circular buffer, writes the most recent trade and replaces the oldest */
+        short_prices[count % SHORT_WIN] = p;
+        long_prices[count % LONG_WIN] = p;
+        count++;
+
+        if (count >= SHORT_WIN)
+            sma_short = dble_sma(short_prices, SHORT_WIN);
+        if (count >= LONG_WIN)
+        {
+            sma_long = dble_sma(long_prices, LONG_WIN);
+
+            d = snap_to_zero(sma_short - sma_long);
+            if (count > LONG_WIN)
+            {
+                tally(check_signal_d(d_prev, d), count, res);
+            }
+            d_prev = d;
+        }
     }
-    return d;
-}
 
-/**
- * Converts double to fixed point price.
- *
- * @param p The trade price in `double`
- *
- * @return The converted `long long` version
- */
-static inline long long to_fx(double p)
-{
-    return (long long)(p * PRICE_SCALE + 0.5);
-}
-
-static inline void window_buf(double buf[], int slot, double *sum, double p)
-{
-    *sum = *sum + p - buf[slot];
-    buf[slot] = p;
-}
-
-/**
- * Keeps a circular fixed sized array.
- * Keeps the most recent prices and replaces the oldest
- *
- * @param buf[] The buffer array
- * @param slot The slot that is moving
- * @param sum The SMA sum
- * @param p The trade prices
- */
-static inline void fxed_window_buf(long long buf[], int slot, long long *sum, long long p)
-{
-    *sum = *sum + p - buf[slot];
-    buf[slot] = p;
+    res->trades_read = count;
+    res->vwap = vwap_value(&vwap);
 }
 
 /*********************************/
@@ -125,69 +139,14 @@ static inline void fxed_window_buf(long long buf[], int slot, long long *sum, lo
  */
 int run_v0(Result *res)
 {
-    double short_prices[SHORT_WIN];
-    double long_prices[LONG_WIN];
-    double sum_pq = 0.0, sum_q = 0.0;
-    double sma_short = 0.0, sma_long = 0.0, d = 0.0, d_prev = 0.0;
-    double p, q, sum;
-    int count = 0;
-    int i;
-
-    /* Reset all values in struct to 0 */
     *res = (Result){0};
-
-    /* Open file and read it */
     if (!open_trades(DATA_FILE))
     {
-        printf("Error: Unable to read %s", DATA_FILE);
+        printf("Error: Unable to read %s\n", DATA_FILE);
         return 0;
     }
-
-    /* Loop the file */
-    while (next_trade())
-    {
-        p = trade_price();
-        q = trade_qty();
-        sum_pq += p * q;
-        sum_q += q;
-
-        /* A circular buffer. Writes the newest trade
-        and replace the oldest */
-        short_prices[count % SHORT_WIN] = p;
-        long_prices[count % LONG_WIN] = p;
-        count++;
-
-        if (count >= SHORT_WIN)
-        {
-            sum = 0.0;
-            for (i = 0; i < SHORT_WIN; i++)
-            {
-                sum += short_prices[i];
-            }
-            sma_short = sum / SHORT_WIN;
-        }
-        if (count >= LONG_WIN)
-        {
-            sum = 0.0;
-            for (i = 0; i < LONG_WIN; i++)
-            {
-                sum += long_prices[i];
-            }
-            sma_long = sum / LONG_WIN;
-
-            d = snap_to_zero(sma_short - sma_long);
-            if (count > LONG_WIN)
-            {
-                tally(CHECK_SIGNAL(d_prev, d), count, res);
-            }
-            d_prev = d;
-        }
-    }
+    naive_loop(NULL, parse_helper, res);
     close_trades();
-
-    /* Update trade count and vwap */
-    res->trades_read = count;
-    res->vwap = sum_pq / sum_q;
     return 1;
 }
 
@@ -200,72 +159,16 @@ int run_v0(Result *res)
  */
 int run_v1(Result *res)
 {
-    long long ts;
-    int is_buy;
-    double short_prices[SHORT_WIN];
-    double long_prices[LONG_WIN];
-    double sum_pq = 0.0, sum_q = 0.0;
-    double sma_short = 0.0, sma_long = 0.0, d = 0.0, d_prev = 0.0;
-    double p, q, sum;
-    int count = 0;
-    int i;
-
-    *res = (Result){0};
-
-    FILE *fp;
-    fp = fopen(DATA_FILE, "r");
+    FILE *fp = open_data_file(res);
     if (fp == NULL)
-    {
         return 0;
-    }
-
-    while (fast_parser(fp, &ts, &p, &q, &is_buy))
-    {
-        sum_pq += p * q;
-        sum_q += q;
-
-        /* Circular buffer, writes the most recent trade
-        and replace the oldest */
-        short_prices[count % SHORT_WIN] = p;
-        long_prices[count % LONG_WIN] = p;
-        count++;
-
-        if (count >= SHORT_WIN)
-        {
-            sum = 0.0;
-            for (i = 0; i < SHORT_WIN; i++)
-            {
-                sum += short_prices[i];
-            }
-            sma_short = sum / SHORT_WIN;
-        }
-        if (count >= LONG_WIN)
-        {
-            sum = 0.0;
-            for (i = 0; i < LONG_WIN; i++)
-            {
-                sum += long_prices[i];
-            }
-            sma_long = sum / LONG_WIN;
-
-            d = snap_to_zero(sma_short - sma_long);
-            if (count > LONG_WIN)
-            {
-                tally(CHECK_SIGNAL(d_prev, d), count, res);
-            }
-            d_prev = d;
-        }
-    }
-
+    naive_loop(fp, parse_fast, res);
     fclose(fp);
-
-    res->trades_read = count;
-    res->vwap = sum_pq / sum_q;
     return 1;
 }
 
 /**
- * `V2`: V1 + running-sum SMA, instead of re-adding whole window (naive)
+ * `V2`: V1 + running-sum SMA, instead of re-adding whole window
  *
  * @param res A `Result` pointer that holds BUY/SELL, trade and VWAP value
  *
@@ -273,32 +176,27 @@ int run_v1(Result *res)
  */
 int run_v2(Result *res)
 {
+    Vwap vwap = {0};
     long long ts;
     int is_buy;
     double short_prices[SHORT_WIN] = {0}; /* start at 0: "removing" a price that was never there changes nothing */
     double long_prices[LONG_WIN] = {0};
-    double sum_pq = 0.0, sum_q = 0.0;
     double sum_short = 0.0, sum_long = 0.0, d, d_prev = 0.0;
     double p, q;
     int count = 0;
 
-    *res = (Result){0};
-
-    FILE *fp;
-    fp = fopen(DATA_FILE, "r");
+    FILE *fp = open_data_file(res);
     if (fp == NULL)
-    {
         return 0;
-    }
+
     while (fast_parser(fp, &ts, &p, &q, &is_buy))
     {
-        sum_pq += p * q;
-        sum_q += q;
+        vwap_add(&vwap, p, q);
 
         /* Circular buffer, writes the most recent trade
         and replace the oldest */
-        window_buf(short_prices, count % SHORT_WIN, &sum_short, p);
-        window_buf(long_prices, count % LONG_WIN, &sum_long, p);
+        window_push_d(short_prices, count % SHORT_WIN, &sum_short, p);
+        window_push_d(long_prices, count % LONG_WIN, &sum_long, p);
         count++;
 
         if (count >= LONG_WIN)
@@ -306,15 +204,16 @@ int run_v2(Result *res)
             d = snap_to_zero(sum_short / SHORT_WIN - sum_long / LONG_WIN);
             if (count > LONG_WIN)
             {
-                tally(CHECK_SIGNAL(d_prev, d), count, res);
+                tally(check_signal_d(d_prev, d), count, res);
             }
+
             d_prev = d;
         }
     }
     fclose(fp);
 
     res->trades_read = count;
-    res->vwap = sum_pq / sum_q;
+    res->vwap = vwap_value(&vwap);
     return 1;
 }
 
@@ -327,37 +226,30 @@ int run_v2(Result *res)
  */
 int run_v3(Result *res)
 {
+    Vwap vwap = {0};
     long long ts;
     int is_buy;
     long long short_fx[SHORT_WIN] = {0};
     long long long_fx[LONG_WIN] = {0};
     long long sum_short = 0, sum_long = 0, d, d_prev = 0, p_fx;
-    double sum_pq = 0.0, sum_q = 0.0;
     double p, q;
     int count = 0;
 
-    *res = (Result){0};
-
-    FILE *fp;
-    fp = fopen(DATA_FILE, "r");
+    FILE *fp = open_data_file(res);
     if (fp == NULL)
-    {
-        printf("Error: Unable to read %s", DATA_FILE);
         return 0;
-    }
 
     while (fast_parser(fp, &ts, &p, &q, &is_buy))
     {
 
         p_fx = to_fx(p); /* Convert decimal to fixed point */
 
-        /* Circular buffer, keeps most recent and replace oldest */
-        fxed_window_buf(short_fx, count % SHORT_WIN, &sum_short, p_fx);
-        fxed_window_buf(long_fx, count % LONG_WIN, &sum_long, p_fx);
-        count++;
+        vwap_add(&vwap, p, q);
 
-        sum_pq += p * q;
-        sum_q += q;
+        /* Circular buffer, keeps most recent and replace oldest */
+        window_push_fx(short_fx, count % SHORT_WIN, &sum_short, p_fx);
+        window_push_fx(long_fx, count % LONG_WIN, &sum_long, p_fx);
+        count++;
 
         if (count >= LONG_WIN)
         {
@@ -367,7 +259,7 @@ int run_v3(Result *res)
             if (count > LONG_WIN)
             {
                 /* Count total BUY/ SELL signal */
-                tally(CHECK_SIGNAL(d_prev, d), count, res);
+                tally(check_signal_fx(d_prev, d), count, res);
             }
             d_prev = d;
         }
@@ -376,7 +268,7 @@ int run_v3(Result *res)
     fclose(fp);
 
     res->trades_read = count;
-    res->vwap = sum_pq / sum_q;
+    res->vwap = vwap_value(&vwap);
 
     return 1;
 }
@@ -390,22 +282,17 @@ int run_v3(Result *res)
  */
 int run_v4(Result *res)
 {
+    Vwap vwap = {0};
     long long ts;
     int is_buy;
     long long sum_short = 0, sum_long = 0, d, d_prev;
-    double sum_pq = 0.0, sum_q = 0.0;
     double p, q;
     int n = 0;
     int i;
 
-    *res = (Result){0};
-
-    FILE *fp;
-    fp = fopen(DATA_FILE, "r");
+    FILE *fp = open_data_file(res);
     if (fp == NULL)
-    {
         return 0;
-    }
 
     /* Read the whole file into the array */
     while (n < MAX_TRADES && fast_parser(fp, &ts, &p, &q, &is_buy))
@@ -422,9 +309,15 @@ int run_v4(Result *res)
     /* Compute VWAP from the array */
     for (i = 0; i < n; i++)
     {
-        sum_pq += trades[i].price * trades[i].qty;
-        sum_q += trades[i].qty;
+        vwap_add(&vwap, trades[i].price, trades[i].qty);
     }
+
+    res->trades_read = n;
+    res->vwap = vwap_value(&vwap);
+
+    /* Too few trades to fill LONG window, returns early */
+    if (n <= LONG_WIN)
+        return 1;
 
     /* Get signals from the array, the price leaving a window is just trades[i - N] */
     for (i = 0; i < LONG_WIN; i++)
@@ -443,12 +336,9 @@ int run_v4(Result *res)
         sum_long = sum_long + trades[i].price_fx - trades[i - LONG_WIN].price_fx;
 
         d = sum_short * LONG_WIN - sum_long * SHORT_WIN;
-        tally(CHECK_SIGNAL(d_prev, d), i + 1, res);
+        tally(check_signal_fx(d_prev, d), i + 1, res);
         d_prev = d;
     }
-
-    res->trades_read = n;
-    res->vwap = sum_pq / sum_q;
 
     return 1;
 }

@@ -1,47 +1,28 @@
 #include <stdio.h>
-#include <stdlib.h> /* malloc and free */
+#include <stdlib.h>
 #include "timing.h"
 #include "../shared/trade.h"
 #include "../shared/constant.h"
+#include "../stageCrival/common/led_show.h"
 #include "../stageCrival/common/rival.h"
-
-/* ---- constants ---- */
-#define NS_PER_SEC 1000000000LL
-#define SLEEP_IF_EARLY_NS 20000000LL      /* sleep only when more than 20 ms early */
-#define REPORT_EVERY_NS (10 * NS_PER_SEC) /* progress line every 10 s */
-#define TIMER_TEST_CALLS 1000
+#include "../stageCrival/common/replay.h"
 
 /* shows one signal on the LED and in colour on the terminal (1 = BUY, -1 = SELL) */
 #ifdef show_signals
-#include "led.h" /* LED helper from the brief */
-
-void show_signal(int sig, int trade_no)
+static void show_signal(int sig, int trade_no)
 {
+    SHOW_LED(sig);
     if (sig == 1)
     {
-        led_off(LED_RED);
-        led_on(LED_GREEN);
         printf(GREEN "BUY  at trade %d" RESET "\n", trade_no);
     }
     else
     {
-        led_off(LED_GREEN);
-        led_on(LED_RED);
         printf(RED "SELL at trade %d" RESET "\n", trade_no);
     }
 }
-#define LED_START() led_init()
-#define LED_STOP()          \
-    do                      \
-    {                       \
-        led_off(LED_GREEN); \
-        led_off(LED_RED);   \
-        led_cleanup();      \
-    } while (0)
 #define SHOW_SIGNAL(sig, n) show_signal((sig), (n))
 #else
-#define LED_START() ((void)0)
-#define LED_STOP() ((void)0)
 #define SHOW_SIGNAL(sig, n) ((void)0)
 #endif
 
@@ -51,16 +32,6 @@ void show_signal(int sig, int trade_no)
 #else
 #define LOG_TRADE(i, due, elapsed) ((void)0)
 #endif
-
-/* ---- the signal check for ONE trade ---- */
-
-typedef struct
-{
-    int released, buys, sells, out_of_order;
-    long long first_ts, prev_ts; /* market time of first / most recent trade */
-    long long max_lag;           /* worst lateness */
-    long long lat_sum, lat_max;  /* processing time per trade */
-} ReplayStats;
 
 /* Prints the time taken when invoking `now_ns()` */
 static void print_timer_cost(void)
@@ -74,64 +45,6 @@ static void print_timer_cost(void)
     printf("Timer call cost: about %.0f ns\n", (double)(t_b - t_a) / TIMER_TEST_CALLS);
 }
 
-/* Determines when to release the trade index. */
-static long long due_ns(int i, long long first_ts)
-{
-    return (trades[i].ts_us - first_ts) * 1000 / SPEED;
-}
-
-/* Gets the elapsed time of the trade */
-static long long wait_until(long long due, uint64_t start)
-{
-    long long elapsed = (long long)(now_ns() - start);
-    while (elapsed < due)
-    {
-        if (due - elapsed > SLEEP_IF_EARLY_NS)
-        {
-            /* Sleeps the CPU if total elapsed time crosse 20ms*/
-            sleep_ms(1);
-        }
-        elapsed = (long long)(now_ns() - start);
-    }
-
-    return elapsed;
-}
-
-/* Used to get the first REPLAYS seconds of trading. */
-static int past_replay_limit(int i, long long first_ts)
-{
-    return REPLAYS > 0 && trades[i].ts_us - first_ts >= REPLAYS * 1000000LL;
-}
-
-static void update_stats(ReplayStats *s, int i, int sig, long long latency, long long lag)
-{
-    s->released++;
-    s->lat_sum += latency;
-    if (latency > s->lat_max)
-    {
-        s->lat_max = latency;
-    }
-    if (lag > s->max_lag)
-    {
-        s->max_lag = lag;
-    }
-
-    if (trades[i].ts_us < s->prev_ts)
-    {
-        s->out_of_order++;
-    }
-    s->prev_ts = trades[i].ts_us;
-
-    if (sig == 1)
-    {
-        s->buys++;
-    }
-    else if (sig == -1)
-    {
-        s->sells++;
-    }
-}
-
 /********************************************************* */
 /* Helpers to format terminal output to print replay stats */
 /********************************************************* */
@@ -140,22 +53,6 @@ static void print_progress(const ReplayStats *s, long long elapsed)
 {
     printf("%5.0f s elapsed: %d trades released, market time %.1f s\n",
            elapsed / 1e9, s->released, (s->prev_ts - s->first_ts) / 1e6);
-}
-
-static void print_summary(const ReplayStats *s, long long wall_ns)
-{
-    double market_s = (s->prev_ts - s->first_ts) / 1e6;
-
-    printf("\nReleased %d of %d trades\n", s->released, n_trades);
-    printf("Market time covered:  %.1f s\n", market_s);
-    printf("Expected wall time:   %.1f s  (market time / %d)\n", market_s / SPEED, SPEED);
-    printf("Actual wall time:     %.1f s\n", wall_ns / 1e9);
-    printf("Worst lateness:       %.3f ms\n", s->max_lag / 1e6);
-    printf("Out-of-order trades:  %d\n", s->out_of_order);
-    printf("BUY signals:          %d\n", s->buys);
-    printf("SELL signals:         %d\n", s->sells);
-    printf("Latency average:      %.1f ns\n", s->released > 0 ? (double)s->lat_sum / s->released : 0.0);
-    printf("Latency worst:        %lld ns\n\n", s->lat_max);
 }
 
 /* Prints: what the old fixed array would reserve vs what malloc reserved */
@@ -217,6 +114,6 @@ int main(void)
     print_memory_use();
 
     LED_STOP();
-    free(trades);
+    free_trades();
     return 0;
 }
