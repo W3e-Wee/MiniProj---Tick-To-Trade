@@ -271,7 +271,7 @@ static int compare_bots(CompareBot *a, CompareBot *b)
     /* Standard Rival: R = 1 us */
     double pnl_a = pnl_for(a, RIVAL_NS);
     double pnl_b = pnl_for(b, RIVAL_NS);
-    printf("\nR = %,1fus:  V0 P&L %.2f   fast P&L %.2f\n Money lost by V0 = %.2f USDT\n", RIVAL_NS / NS_PER_US, pnl_a, pnl_b, pnl_b - pnl_a);
+    printf("\nR = %.1fus:  V0 P&L %.2f   fast P&L %.2f\n Money lost by V0 = %.2f USDT\n", RIVAL_NS / NS_PER_US, pnl_a, pnl_b, pnl_b - pnl_a);
     printf("           Races lost to the rival: V0 - %d of %d | Fast - %d of %d\n",
            races_lost(a, RIVAL_NS), a->n_sig, races_lost(b, RIVAL_NS), b->n_sig);
 
