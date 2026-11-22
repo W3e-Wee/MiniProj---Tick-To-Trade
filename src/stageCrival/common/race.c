@@ -29,7 +29,7 @@ static void print_status(const Bot *bot, const ReplayStats *st, long long lag, c
     }
 
     printf("\r%-7s: market %7.1f s | lag %10.3f ms | BUY %5d SELL %5d | P&L %11.2f | last %s ",
-           bot->name, (double)(st->prev_ts - st->first_ts) / US_PER_SEC, (double)lag / NS_PER_MS,
+           bot->name, (double)(st->prev_ts - st->first_ts) / US_PER_SEC, lag,
            st->buys, st->sells, position_closed_pnl(pos), last);
     fflush(stdout);
 }
