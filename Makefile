@@ -29,30 +29,35 @@ else
 endif
 
 .PHONY: all clean stage0 loop loop-o1 loop-o2 loop-o3 stage0_benchmark stage0_benchmark-o2 run-stage0 \
-        stageA stageA-test run-stageA run-stageA-test \
+        stageA stageA-test run-stageA run-stageA-test plot-signals \
         stageAplus run-stageAplus \
         stageB stageB-test stageB-stress run-stageB ladder-test ladder-stress ladder-dev \
         run-ladder-test run-ladder-stress run-ladder-dev run-ladder plot-ladder run-ladder-full \
-        stageC stageC-test stageC-stress run-stageC run-stageC-test run-stageC-stress \
+        stageC stageC-test stageC-stress stageC-led run-stageC run-stageC-test run-stageC-stress run-stageC-led \
         rival rival-test rival-stress run-rival run-rival-test run-rival-stress plot-rival \
         demo demov0 demofast run-demo run-demov0 run-demofast
 
 SUDO =
+LED_FLAG =
 
 # OS specific checks to create the relevant folders
 ifeq ($(OS),Windows_NT)
-    SUDO =
     fixpath = $(subst /,\,$(1))
     MKDIR = if not exist $(call fixpath,$(1)) mkdir $(call fixpath,$(1))
     RMDIR = if exist $(call fixpath,$(1)) rmdir /s /q $(call fixpath,$(1))
 else
-    SUDO = sudo
     fixpath = $(1)
     MKDIR = mkdir -p $(1)
     RMDIR = rm -rf $(1)
+    # Only a Raspberry Pi has the LEDs, so only there do we need sudo and the LED build
+    IS_PI := $(shell grep -qa "Raspberry Pi" /proc/device-tree/model 2>/dev/null && echo pi)
+    ifeq ($(IS_PI),pi)
+        SUDO = sudo
+        LED_FLAG = -Dshow_signals
+    endif
 endif
  
-all: stage0 stageA stageA-test stageAplus stageB stageB-test stageB-stress ladder-test ladder-dev ladder-stress stageC stageC-test stageC-stress rival rival-test rival-stress
+all: stage0 stageA stageA-test stageA-stress stageAplus stageB stageB-test stageB-stress ladder-test ladder-dev ladder-stress stageC stageC-test stageC-stress stageC-led rival rival-test rival-stress
  
 # delete every build output (binaries, results, plots)
 clean:
@@ -115,6 +120,10 @@ stageA:
 stageA-test:
 	$(call MKDIR,$(STAGEA_DIR))
 	$(CC) -DSHORT_WIN=3 -DLONG_WIN=5 -Ddata_file $(INC) src/stageA/stageA.c provided/trade_io.c -o $(STAGEA_DIR)/stageA_test
+
+stageA-stress:
+	$(call MKDIR,$(STAGEA_DIR))
+	$(CC) $(CFLAGS) -O2 -Dstress_file $(INC) src/stageA/stageA.c provided/trade_io.c -o $(STAGEA_DIR)/stageA_stress
  
 run-stageA: stageA
 	$(call MKDIR,$(STAGEA_DIR))
@@ -123,6 +132,13 @@ run-stageA: stageA
 run-stageA-test: stageA-test
 	$(call MKDIR,$(STAGEA_DIR))
 	$(call fixpath,./$(STAGEA_DIR)/stageA_test) > $(call fixpath,$(STAGEA_DIR)/stageA_test_results.txt)
+
+run-stageA-stress: stageA-stress
+	$(call fixpath,./$(STAGEA_DIR)/stageA_stress) > $(call fixpath,$(STAGEA_DIR)/stageA_stress_results.txt)
+
+plot-signals:
+	gnuplot plots/plot_signals
+	@echo "Plotted signals to compiled/stageA/signals.png"
  
 # =====================================
 #  Stage A+ build and execute commands
@@ -163,15 +179,15 @@ run-stageB-stress: stageB-stress
 # ===========================================
 ladder-test:
 	$(call MKDIR,$(STAGEB_DIR))
-	$(CC) -O2 -DSHORT_WIN=3 -DLONG_WIN=5 -Ddata_file $(INC) src/stageB/ladder.c src/shared/parser.c provided/trade_io.c src/stage0/stage0_helper.c src/stageB/versions.c -o $(STAGEB_DIR)/ladder_test
+	$(CC) -O2 -DSHORT_WIN=3 -DLONG_WIN=5 -Ddata_file $(INC) src/stageB/ladder.c src/shared/parser.c provided/trade_io.c src/stage0/stage0_helper.c src/stageB/versions.c -lm -o $(STAGEB_DIR)/ladder_test
  
 ladder-stress:
 	$(call MKDIR,$(STAGEB_DIR))
-	$(CC) -O2 -Dstress_file $(INC) src/stageB/ladder.c src/shared/parser.c provided/trade_io.c src/stage0/stage0_helper.c src/stageB/versions.c -o $(STAGEB_DIR)/ladder_stress
+	$(CC) -O2 -Dstress_file $(INC) src/stageB/ladder.c src/shared/parser.c provided/trade_io.c src/stage0/stage0_helper.c src/stageB/versions.c -lm -o $(STAGEB_DIR)/ladder_stress
  
 ladder-dev:
 	$(call MKDIR,$(STAGEB_DIR))
-	$(CC) -O2 $(INC) src/stageB/ladder.c src/shared/parser.c provided/trade_io.c src/stage0/stage0_helper.c src/stageB/versions.c -o $(STAGEB_DIR)/ladder_dev
+	$(CC) -O2 $(INC) src/stageB/ladder.c src/shared/parser.c provided/trade_io.c src/stage0/stage0_helper.c src/stageB/versions.c -lm -o $(STAGEB_DIR)/ladder_dev
  
 # each run- target rebuilds first, so it can never run an old compiled copy
 run-ladder-test: ladder-test
@@ -211,6 +227,10 @@ stageC-test:
 stageC-stress:
 	$(call MKDIR,$(STAGEC_DIR))
 	$(CC) -O2 -Dstress_file $(INC) $(STAGEC_SRC) -o $(STAGEC_DIR)/stageC_stress
+
+stageC-led:
+	$(call MKDIR,$(STAGEC_DIR))
+	$(CC) $(CFLAGS) -O2 -Dshow_signals $(INC) $(STAGEC_SRC) -o $(STAGEC_DIR)/stageC_led
  
 run-stageC: stageC
 	$(call fixpath,./$(STAGEC_DIR)/stageC) > $(call fixpath,$(STAGEC_DIR)/stageC_results.txt)
@@ -220,6 +240,9 @@ run-stageC-test: stageC-test
 
 run-stageC-stress: stageC-stress
 	$(call fixpath,./$(STAGEC_DIR)/stageC_stress) > $(call fixpath,$(STAGEC_DIR)/stageC_stress_results.txt)
+
+run-stageC-led: stageC-led
+	$(SUDO) $(call fixpath,./$(STAGEC_DIR)/stageC_led)
 
 # ==============================================
 #  Stage C Rival Bot build and execute commands

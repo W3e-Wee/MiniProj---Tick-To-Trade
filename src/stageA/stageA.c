@@ -4,8 +4,10 @@
 #include "../shared/signal.h"
 
 /* Plot specific constants */
-#ifdef data_file
+#if defined(data_file)
 #define PLOT_FILE "compiled/stageA/signals_test.dat"
+#elif defined(stress_file)
+#define PLOT_FILE "compiled/stageA/signals_stress.dat"
 #else
 #define PLOT_FILE "compiled/stageA/signals.dat"
 #endif
