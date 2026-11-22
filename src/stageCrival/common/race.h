@@ -4,7 +4,7 @@
 /* The race window: replays the trades on the market's own clock, runs one bot on every trade,
    shows a live counter and prints a summary.
    With -Dshow_signals every signal also lights the LED (green = BUY, red = SELL), for both bots.
-   v0malloc.c and vfastestmalloc.c each give it their bot; race_demo.c picks which one. */
+   v0malloc.c and vfastestmalloc.c each give it their bot; raceDemo.c picks which one. */
 
 typedef struct
 {

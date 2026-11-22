@@ -26,7 +26,7 @@ static inline int check_signal_d(double d_prev, double d)
 }
 
 /**
- * Same as `check_signal_d` but uses a `long long` differece
+ * Same as `check_signal_d` but uses a `long long` difference
  *
  * @param d_prev Difference of prev_trade
  * @param d Difference of current trade

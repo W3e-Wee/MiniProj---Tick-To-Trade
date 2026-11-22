@@ -4,7 +4,7 @@
 
 This project reads offline Binance-style trade CSV files, computes VWAP, one-second OHLC bars and moving-average crossover signals, and compares streaming, in-memory, replay and optimized implementations. It does not connect to an exchange or place orders.
 
-## Supported Platforms & Pre-requisities
+## Supported Platforms & Prerequisities
 
 This project uses GCC and GNU Make on 64-bit Linux, macOS, Windows and Raspberry Pi OS. Ensure that you have the following pre-requisite packages.
 * `gcc`

@@ -19,7 +19,7 @@ int v0_reset(void)
 }
 
 /**
- * Uses the current trade index to deteremine a BUY/SELL signal.
+ * Uses the current trade index to determine a BUY/SELL signal.
  * Re-adds entire window to get the SMA.
  *
  * @param i The trade index

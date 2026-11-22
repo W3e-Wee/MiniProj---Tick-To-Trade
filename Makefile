@@ -39,7 +39,7 @@ endif
 
 SUDO =
 
-# OS specfic checks to create the relevant folders
+# OS specific checks to create the relevant folders
 ifeq ($(OS),Windows_NT)
     SUDO =
     fixpath = $(subst /,\,$(1))
@@ -90,7 +90,7 @@ loop-o3:
 	$(call MKDIR,$(STAGE0_DIR))
 	${CC} ${CFLAGS} -O3 src/stage0/stage0_helper.c src/stage0/sum_loop.c -o $(STAGE0_DIR)/sum_loop_O3
 
-# Re-builds every stage0 files, runs them
+# Re-builds every stage0 file, runs them
 run-stage0: stage0
 	@echo --- sum_recursive ---
 	$(call fixpath,./$(STAGE0_DIR)/sum_recursive)

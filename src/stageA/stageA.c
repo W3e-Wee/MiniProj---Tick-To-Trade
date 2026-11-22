@@ -3,7 +3,7 @@
 #include "../shared/constant.h"
 #include "../shared/signal.h"
 
-/* Plot specific constans */
+/* Plot specific constants */
 #ifdef data_file
 #define PLOT_FILE "compiled/stageA/signals_test.dat"
 #else
@@ -64,7 +64,7 @@ int main(void)
     int trade_signal = 0;
     int buys = 0, sells = 0;
 
-    /* Using DATA_FILE as original is hardcoded to test.cv making 30 60 run for 20 lines only*/
+    /* Using DATA_FILE as original is hardcoded to test.csv making 30 60 run for 20 lines only*/
     if (!open_trades(DATA_FILE))
     {
         printf("Error: Unable to open %s\n", DATA_FILE);

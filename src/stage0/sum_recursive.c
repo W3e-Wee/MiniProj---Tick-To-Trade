@@ -8,7 +8,7 @@
 
 int main()
 {
-    // Recusrion and loop var
+    // Recursion and loop var
     volatile uint64_t depth = DEFAULT_MAX_N;
     uint64_t iter_sum = 0;
     uint64_t recur_sum = 0;

@@ -31,7 +31,7 @@ static CompareBot fast_bot = {"Fast bot", NULL, check_trade, NULL};
 /**
  * Runs one bot (v0/fast) over every trade.
  *
- * @param b A `CompareBot` pointer to hold functios and value of each bot
+ * @param b A `CompareBot` pointer to hold functions and value of each bot
  *
  * @return
  * `1` - Run was successful; `0` - Run cannot start.
@@ -48,7 +48,7 @@ static int run_bot(CompareBot *b)
     {
         uint64_t t0 = now_ns(); /* start clock when trade arrives */
         int side = b->step(i);
-        uint64_t t1 = now_ns(); /* stops when signal is decied */
+        uint64_t t1 = now_ns(); /* stops when signal is decided */
 
         if (side == 0)
         {
@@ -80,7 +80,7 @@ static int run_bot(CompareBot *b)
 /**
  * P&L of one bot's signals for a rival reaction time (r_ns)
  *
- * @param b A `CompareBot` struct containing funtions and values to run the bot
+ * @param b A `CompareBot` struct containing functions and values to run the bot
  * @param r_ns The rival reaction time
  *
  * @return The P&L of the bot
@@ -130,7 +130,7 @@ static int races_lost(const CompareBot *b, double r_ns)
  * @param a First bot
  * @param b Second bot
  *
- * @return `1` - Boths bot raised the same signals (same trade, same sides).
+ * @return `1` - Both bots raised the same signals (same trade, same sides).
  * `0` - Different signals raised
  */
 static int same_signals(const CompareBot *a, const CompareBot *b)

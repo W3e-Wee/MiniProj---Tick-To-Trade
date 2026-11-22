@@ -4,7 +4,7 @@
 
 /**
  * Reads a decimal number straight from the characters of a row.
- * Bilds the digits as a whole number and counts how many of digits sit after the '.',
+ * Builds the digits as a whole number and counts how many digits sit after the '.',
  * then divides once at the end.
  *
  * @param line[] One row of the csv file
@@ -43,7 +43,7 @@ static double read_decimal(const char line[], int *i)
  * @param fp `FILE` pointer to read from.
  * @param ts Timestamp of the trade
  * @param price Price of trade
- * @param qty Quantit of the trade
+ * @param qty Quantity of the trade
  * @param is_buy Indicates BUY/SELL signal
  *
  * @return

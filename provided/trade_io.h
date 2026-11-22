@@ -25,7 +25,7 @@
  * GROUP_FOLDER: your group's folder inside DATA_FOLDER.
  */
 #ifndef DATA_FOLDER
-#define DATA_FOLDER  "C:/Users/SourBread/Documents/Vm_Shared/Coding/MiniProject/TickTradeProj/data"
+#define DATA_FOLDER  "data"
 #endif
 #ifndef GROUP_FOLDER
 #define GROUP_FOLDER "Group05"
