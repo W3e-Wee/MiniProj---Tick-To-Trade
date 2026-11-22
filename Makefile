@@ -1,5 +1,5 @@
 CC = gcc
-CFLAGS = -Wall -Wextra -I./src/stage0
+CFLAGS = -Wall -Wextra
 INC = -I provided
 STAGE0_DIR = compiled/stage0
 STAGEA_DIR = compiled/stageA
@@ -7,58 +7,103 @@ STAGEAPLUS_DIR = compiled/stageA_plus
 STAGEB_DIR = compiled/stageB
 STAGEC_DIR = compiled/stageC
 STAGECRIVAL_DIR = compiled/stageC_rival
-SHOW = -Dshow_signals    # put once above the stageC rules; run "make run-stageC-stress SHOW=" for a quiet laptop run
-
+ 
 #rival
-RIVAL_SRC = src/stageCrival/rival.c src/stageCrival/v0malloc.c src/stageCrival/vfastestmalloc.c src/stageCrival/trades.c src/stageA_plus/parser.c provided/trade_io.c
-V0_SRC = src/stageCrival/v0malloc.c src/stageCrival/rival.c src/stageCrival/trades.c src/stageA_plus/parser.c provided/trade_io.c
-FAST_SRC = src/stageCrival/vfastestmalloc.c src/stageCrival/rival.c src/stageCrival/trades.c src/stageA_plus/parser.c
-RACE_SPEED = 10000
+RIVAL_SRC = src/stageCrival/compareRival.c src/stageCrival/common/rival.c src/stageCrival/v0Bot.c src/shared/parser.c provided/trade_io.c
+V0_SRC = src/stageCrival/v0Bot.c src/stageCrival/common/rival.c src/shared/parser.c provided/trade_io.c
+FAST_SRC = src/stageCrival/common/rival.c src/shared/parser.c
+REPLAY_SRC = src/stageCrival/common/replay.c
+RACE_SRC = src/stageCrival/raceDemo.c src/stageCrival/common/race.c $(REPLAY_SRC)
+STAGEC_SRC = src/stageC/stageC.c src/shared/parser.c src/stageCrival/common/rival.c $(REPLAY_SRC)
+RACE_SPEED = 1000
 RACE_LED = #for the rpi
-.PHONY: rival rival-test rival-stress run-rival run-rival-test run-rival-stress plot-rival demov0 demofast run-demov0 run-demofast
+
+# which bot the race window runs: make run-demo BOT=v0   or   make run-demo BOT=fast
+BOT = fast
+ifeq ($(BOT),v0)
+    DEMO_SRC = $(V0_SRC)
+else ifeq ($(BOT),fast)
+    DEMO_SRC = $(FAST_SRC)
+else
+    $(error BOT must be v0 or fast)
+endif
+
+.PHONY: all clean stage0 loop loop-o1 loop-o2 loop-o3 stage0_benchmark stage0_benchmark-o2 run-stage0 \
+        stageA stageA-test run-stageA run-stageA-test \
+        stageAplus run-stageAplus \
+        stageB stageB-test stageB-stress run-stageB ladder-test ladder-stress ladder-dev \
+        run-ladder-test run-ladder-stress run-ladder-dev run-ladder plot-ladder run-ladder-full \
+        stageC stageC-test stageC-stress run-stageC run-stageC-test run-stageC-stress \
+        rival rival-test rival-stress run-rival run-rival-test run-rival-stress plot-rival \
+        demo demov0 demofast run-demo run-demov0 run-demofast
 
 SUDO =
+
 # OS specfic checks to create the relevant folders
 ifeq ($(OS),Windows_NT)
     SUDO =
     fixpath = $(subst /,\,$(1))
     MKDIR = if not exist $(call fixpath,$(1)) mkdir $(call fixpath,$(1))
+    RMDIR = if exist $(call fixpath,$(1)) rmdir /s /q $(call fixpath,$(1))
 else
     SUDO = sudo
     fixpath = $(1)
     MKDIR = mkdir -p $(1)
+    RMDIR = rm -rf $(1)
 endif
-
+ 
+all: stage0 stageA stageA-test stageAplus stageB stageB-test stageB-stress ladder-test ladder-dev ladder-stress stageC stageC-test stageC-stress rival rival-test rival-stress
+ 
+# delete every build output (binaries, results, plots)
+clean:
+	$(call RMDIR,compiled)
+ 
 # ============================
 # Stage 0 build commands
 # ============================
 # Builds all stage 0 files
 stage0: loop loop-o1 loop-o2 loop-o3 stage0_benchmark stage0_benchmark-o2
+ 
 stage0_benchmark: src/stage0/stage0_helper.c src/stage0/sum_recursive.c
 	$(call MKDIR,$(STAGE0_DIR))
 	${CC} ${CFLAGS} src/stage0/stage0_helper.c src/stage0/sum_recursive.c -o $(STAGE0_DIR)/sum_recursive
-
+ 
 # Optimisation tiers for Stage 0 benchmarking
 stage0_benchmark-o2: 
 	$(call MKDIR,$(STAGE0_DIR))
 	${CC} ${CFLAGS} -O2 src/stage0/stage0_helper.c src/stage0/sum_recursive.c -o $(STAGE0_DIR)/sum_recursive_O2
-
+ 
 loop: src/stage0/stage0_helper.c src/stage0/sum_loop.c
 	$(call MKDIR,$(STAGE0_DIR))
 	${CC} ${CFLAGS} src/stage0/stage0_helper.c src/stage0/sum_loop.c -o $(STAGE0_DIR)/sum_loop
-
+ 
 # Optimisation tier for iterative Loop
 loop-o1: 
 	$(call MKDIR,$(STAGE0_DIR))
 	${CC} ${CFLAGS} -O1 src/stage0/stage0_helper.c src/stage0/sum_loop.c -o $(STAGE0_DIR)/sum_loop_O1
-
+ 
 loop-o2:
 	$(call MKDIR,$(STAGE0_DIR))
 	${CC} ${CFLAGS} -O2 src/stage0/stage0_helper.c src/stage0/sum_loop.c -o $(STAGE0_DIR)/sum_loop_O2
-
+ 
 loop-o3:
 	$(call MKDIR,$(STAGE0_DIR))
 	${CC} ${CFLAGS} -O3 src/stage0/stage0_helper.c src/stage0/sum_loop.c -o $(STAGE0_DIR)/sum_loop_O3
+
+# Re-builds every stage0 files, runs them
+run-stage0: stage0
+	@echo --- sum_recursive ---
+	$(call fixpath,./$(STAGE0_DIR)/sum_recursive)
+	@echo --- sum_recursive_O2 ---
+	$(call fixpath,./$(STAGE0_DIR)/sum_recursive_O2)
+	@echo --- sum_loop ---
+	$(call fixpath,./$(STAGE0_DIR)/sum_loop)
+	@echo --- sum_loop_O1 ---
+	$(call fixpath,./$(STAGE0_DIR)/sum_loop_O1)
+	@echo --- sum_loop_O2 ---
+	$(call fixpath,./$(STAGE0_DIR)/sum_loop_O2)
+	@echo --- sum_loop_O3 ---
+	$(call fixpath,./$(STAGE0_DIR)/sum_loop_O3)
 
 # ===================================
 # Stage A build and execute commands
@@ -66,205 +111,164 @@ loop-o3:
 stageA:
 	$(call MKDIR,$(STAGEA_DIR))
 	$(CC) -O2 $(INC) src/stageA/stageA.c provided/trade_io.c -o $(STAGEA_DIR)/stageA
-
+ 
 stageA-test:
 	$(call MKDIR,$(STAGEA_DIR))
 	$(CC) -DSHORT_WIN=3 -DLONG_WIN=5 -Ddata_file $(INC) src/stageA/stageA.c provided/trade_io.c -o $(STAGEA_DIR)/stageA_test
-
+ 
 run-stageA: stageA
 	$(call MKDIR,$(STAGEA_DIR))
 	$(call fixpath,./$(STAGEA_DIR)/stageA) > $(call fixpath,$(STAGEA_DIR)/stageA_dev_results.txt)
-
+ 
 run-stageA-test: stageA-test
 	$(call MKDIR,$(STAGEA_DIR))
 	$(call fixpath,./$(STAGEA_DIR)/stageA_test) > $(call fixpath,$(STAGEA_DIR)/stageA_test_results.txt)
-
+ 
 # =====================================
 # Stage A+ build and execute commands
 # =====================================
 stageAplus: 
 	$(call MKDIR,$(STAGEAPLUS_DIR))
-	$(CC) -O2 $(INC) src/stage0/stage0_helper.c src/stageA_plus/stageAplus.c src/stageA_plus/parser.c -o $(STAGEAPLUS_DIR)/stageAplus
-
+	$(CC) -O2 $(INC) src/stage0/stage0_helper.c src/stageA_plus/stageAplus.c src/shared/parser.c -o $(STAGEAPLUS_DIR)/stageAplus
+ 
 run-stageAplus: stageAplus
-	./$(STAGEAPLUS_DIR)/stageAplus
+	$(call fixpath,./$(STAGEAPLUS_DIR)/stageAplus) > $(call fixpath,$(STAGEAPLUS_DIR)/stageAplus_results.txt)
 
 # =====================================
 # Stage B build and execute commands
 # =====================================
 stageB: 
 	$(call MKDIR,$(STAGEB_DIR))
-	$(CC) -O2 $(INC) src/stageB/stageB.c src/stageA_plus/parser.c -o $(STAGEB_DIR)/stageB
-
+	$(CC) -O2 $(INC) src/stageB/stageB.c src/shared/parser.c -o $(STAGEB_DIR)/stageB
+ 
 stageB-test:
-	$(CC) -O2 -DSHORT_WIN=3 -DLONG_WIN=5 -Ddata_file $(INC) src/stageB/stageB.c src/stageA_plus/parser.c -o $(STAGEB_DIR)/stageB_test
-
+	$(call MKDIR,$(STAGEB_DIR))
+	$(CC) -O2 -DSHORT_WIN=3 -DLONG_WIN=5 -Ddata_file $(INC) src/stageB/stageB.c src/shared/parser.c -o $(STAGEB_DIR)/stageB_test
+ 
 stageB-stress:
-	$(CC) -O2 -Dstress_file $(INC) src/stageB/stageB.c src/stageA_plus/parser.c -o $(STAGEB_DIR)/stageB_stress
+	$(call MKDIR,$(STAGEB_DIR))
+	$(CC) -O2 -Dstress_file $(INC) src/stageB/stageB.c src/shared/parser.c -o $(STAGEB_DIR)/stageB_stress
+ 
+run-stageB: stageB
+	$(call fixpath,./$(STAGEB_DIR)/stageB) > $(call fixpath,$(STAGEB_DIR)/stageB_dev_results.txt)
 
-run-stageB:
-	./$(STAGEB_DIR)/stageB
+run-stageB-test: stageB-test
+	$(call fixpath,./$(STAGEB_DIR)/stageB_test) > $(call fixpath,$(STAGEB_DIR)/stageB_test_results.txt)
 
+run-stageB-stress: stageB-stress
+	$(call fixpath,./$(STAGEB_DIR)/stageB_stress) > $(call fixpath,$(STAGEB_DIR)/stageB_stress_results.txt)
+ 
+# ==========================================
+# Ladder build, execute & plotting commands
+# ==========================================
 ladder-test:
-	$(CC) -O2 -DSHORT_WIN=3 -DLONG_WIN=5 -Ddata_file $(INC) src/stageB/ladder.c src/stageA_plus/parser.c provided/trade_io.c -o $(STAGEB_DIR)/ladder_test
-
+	$(call MKDIR,$(STAGEB_DIR))
+	$(CC) -O2 -DSHORT_WIN=3 -DLONG_WIN=5 -Ddata_file $(INC) src/stageB/ladder.c src/shared/parser.c provided/trade_io.c src/stage0/stage0_helper.c src/stageB/versions.c -o $(STAGEB_DIR)/ladder_test
+ 
 ladder-stress:
-	$(CC) -O2 -Dstress_file $(INC) src/stageB/ladder.c src/stageA_plus/parser.c provided/trade_io.c -o $(STAGEB_DIR)/ladder_stress
-
+	$(call MKDIR,$(STAGEB_DIR))
+	$(CC) -O2 -Dstress_file $(INC) src/stageB/ladder.c src/shared/parser.c provided/trade_io.c src/stage0/stage0_helper.c src/stageB/versions.c -o $(STAGEB_DIR)/ladder_stress
+ 
 ladder-dev:
-	$(CC) -O2 $(INC) src/stageB/ladder.c src/stageA_plus/parser.c provided/trade_io.c -o $(STAGEB_DIR)/ladder_dev
-
+	$(call MKDIR,$(STAGEB_DIR))
+	$(CC) -O2 $(INC) src/stageB/ladder.c src/shared/parser.c provided/trade_io.c src/stage0/stage0_helper.c src/stageB/versions.c -o $(STAGEB_DIR)/ladder_dev
+ 
 # each run- target rebuilds first, so it can never run an old compiled copy
 run-ladder-test: ladder-test
-	./$(STAGEB_DIR)/ladder_test
+	$(call fixpath,./$(STAGEB_DIR)/ladder_test) > $(call fixpath,$(STAGEB_DIR)/ladder_test_results.txt)
 
 run-ladder-stress: ladder-stress
-	./$(STAGEB_DIR)/ladder_stress
+	$(call fixpath,./$(STAGEB_DIR)/ladder_stress) > $(call fixpath,$(STAGEB_DIR)/ladder_stress_results.txt)
 
 run-ladder-dev: ladder-dev
-	./$(STAGEB_DIR)/ladder_dev
+	$(call fixpath,./$(STAGEB_DIR)/ladder_dev) > $(call fixpath,$(STAGEB_DIR)/ladder_dev_results.txt)
 
 # the full ladder: check on test20 first, then the stress_full.csv run
 run-ladder: ladder-test ladder-stress
 	@echo "--- test20 check: expect BUY at 7 and SELL at 10 for every version ---"
-	./$(STAGEB_DIR)/ladder_test
+	$(call fixpath,./$(STAGEB_DIR)/ladder_test) > $(call fixpath,$(STAGEB_DIR)/ladder_test_results.txt)
 
 	@echo "--- stress_full.csv ladder (takes a few minutes) ---"
-	./$(STAGEB_DIR)/ladder_stress
+	$(call fixpath,./$(STAGEB_DIR)/ladder_stress) > $(call fixpath,$(STAGEB_DIR)/ladder_stress_results.txt)
 
 plot-ladder:
 	gnuplot plots/plot_ladder
 	@echo "Plotted ladder to ladder.png"
 
-run-ladder-full: 
-	run-ladder plot-ladder
-
+run-ladder-full: run-ladder plot-ladder
 # =====================================
 # Stage C build and execute commands
 # =====================================
-stageC:
-	$(CC) -O2 $(SHOW) $(INC) src/stageC/stageC.c src/stageA_plus/parser.c -o $(STAGEC_DIR)/stageC
-
+stageC: 
+	$(call MKDIR,$(STAGEC_DIR))
+	$(CC) -O2 $(INC) $(STAGEC_SRC) -o $(STAGEC_DIR)/stageC
+ 
 stageC-test:
-	$(CC) -O2 -Ddata_file -DSHORT_WIN=3 -DLONG_WIN=5 -DSPEED=1 $(SHOW) $(INC) src/stageC/stageC.c src/stageA_plus/parser.c -o $(STAGEC_DIR)/stageC_test
-stageC-1x:
-	$(CC) -O2 -Dstress_file -DSPEED=1 -DREPLAYS=10 $(SHOW) $(INC) src/stageC/stageC.c src/stageA_plus/parser.c -o $(STAGEC_DIR)/stageC_1x
-stageC-100x:
-	$(CC) -O2 -Dstress_file -DSPEED=100 $(SHOW) $(INC) src/stageC/stageC.c src/stageA_plus/parser.c -o $(STAGEC_DIR)/stageC_100x
-stageC-1000x:
-	$(CC) -O2 -Dstress_file -DSPEED=1000 $(SHOW) $(INC) src/stageC/stageC.c src/stageA_plus/parser.c -o $(STAGEC_DIR)/stageC_1000x
-
+	$(call MKDIR,$(STAGEC_DIR))
+	$(CC) -O2 -DSHORT_WIN=3 -DLONG_WIN=5 -Ddata_file $(INC) $(STAGEC_SRC) -o $(STAGEC_DIR)/stageC_test
+ 
+stageC-stress:
+	$(call MKDIR,$(STAGEC_DIR))
+	$(CC) -O2 -Dstress_file $(INC) $(STAGEC_SRC) -o $(STAGEC_DIR)/stageC_stress
+ 
 run-stageC: stageC
-	$(SUDO) ./$(STAGEC_DIR)/stageC
+	$(call fixpath,./$(STAGEC_DIR)/stageC) > $(call fixpath,$(STAGEC_DIR)/stageC_results.txt)
+ 
 run-stageC-test: stageC-test
-	$(SUDO) ./$(STAGEC_DIR)/stageC_test
-run-stageC-1x: stageC-1x
-	$(SUDO) ./$(STAGEC_DIR)/stageC_1x
-run-stageC-100x: stageC-100x
-	$(SUDO) ./$(STAGEC_DIR)/stageC_100x
-run-stageC-1000x: stageC-1000x
-	$(SUDO) ./$(STAGEC_DIR)/stageC_1000x
+	$(call fixpath,./$(STAGEC_DIR)/stageC_test) > $(call fixpath,$(STAGEC_DIR)/stageC_test_results.txt)
 
-# the assembly listing for 7.5: run this on the Pi to get the AArch64 one
-asm-stageC:
-	$(CC) -S -O2 -DSPEED=1 $(INC) src/stageC/stageC.c -o $(STAGEC_DIR)/stageC.s
-
-run-stageC-stress: run-stageC-1x run-stageC-1000x
+run-stageC-stress: stageC-stress
+	$(call fixpath,./$(STAGEC_DIR)/stageC_stress) > $(call fixpath,$(STAGEC_DIR)/stageC_stress_results.txt)
 
 # ===============================================
 # Stage C Rival Bot build and execute commands
 # ===============================================
 rival-test:
 	$(call MKDIR,$(STAGECRIVAL_DIR))
-	$(CC) -O2 -DSHORT_WIN=3 -DLONG_WIN=5 -Ddata_file $(INC) $(RIVAL_SRC) -o $(STAGECRIVAL_DIR)/rival_test
-
+	$(CC) -O2 -DSHORT_WIN=3 -DLONG_WIN=5 -Ddata_file $(INC) $(RIVAL_SRC) -lm -o $(STAGECRIVAL_DIR)/rival_test
+ 
 rival-stress:
-	$(CC) -O2 -Dstress_file $(INC) $(RIVAL_SRC) -o $(STAGECRIVAL_DIR)/rival_stress
-
+	$(call MKDIR,$(STAGECRIVAL_DIR))
+	$(CC) -O2 -Dstress_file $(INC) $(RIVAL_SRC) -lm -o $(STAGECRIVAL_DIR)/rival_stress
+ 
 rival: rival-test rival-stress
-
+ 
 run-rival-test: rival-test
-	./$(STAGECRIVAL_DIR)/rival_test
+	$(call fixpath,./$(STAGECRIVAL_DIR)/rival_test) > $(call fixpath,$(STAGECRIVAL_DIR)/rival_test_results.txt)
 
 run-rival-stress: rival-stress
-	./$(STAGECRIVAL_DIR)/rival_stress
+	$(call fixpath,./$(STAGECRIVAL_DIR)/rival_stress) > $(call fixpath,$(STAGECRIVAL_DIR)/rival_stress_results.txt)
 
 run-rival: rival-test rival-stress
 	@echo "--- test20 check: both bots must show BUY at 7 and SELL at 10 ---"
-	./$(STAGECRIVAL_DIR)/rival_test
+	$(call fixpath,./$(STAGECRIVAL_DIR)/rival_test) > $(call fixpath,$(STAGECRIVAL_DIR)/rival_test_results.txt)
 	@echo "--- stress_full.csv rival sweep ---"
-	./$(STAGECRIVAL_DIR)/rival_stress
+	$(call fixpath,./$(STAGECRIVAL_DIR)/rival_stress) > $(call fixpath,$(STAGECRIVAL_DIR)/rival_stress_results.txt)
 	@echo "--- plotting rival sweep ---"
 	gnuplot plots/plot_rival
-
+ 
 plot-rival:
 	gnuplot plots/plot_rival
-
-#demo
+ 
+# ===============================================
+# Race window: the bot is picked with BOT=v0 or BOT=fast
+# ===============================================
+demo:
+	$(call MKDIR,$(STAGECRIVAL_DIR))
+	$(CC) -O2 -Dstress_file -Ddemo_$(BOT) -DSPEED=$(RACE_SPEED) $(RACE_LED) $(INC) $(RACE_SRC) $(DEMO_SRC) -o $(STAGECRIVAL_DIR)/demo_$(BOT)
+ 
+run-demo: demo
+	$(SUDO) $(call fixpath,./$(STAGECRIVAL_DIR)/demo_$(BOT))
+ 
 demov0:
-	$(CC) -O2 -Dstress_file -Ddemo_v0 -DSPEED=$(RACE_SPEED) $(INC) $(V0_SRC) -o $(STAGECRIVAL_DIR)/demov0
-
+	$(MAKE) demo BOT=v0
+ 
 demofast:
-	$(CC) -O2 -Dstress_file -Ddemo_fast -DSPEED=$(RACE_SPEED) $(RACE_LED) $(INC) $(FAST_SRC) -o $(STAGECRIVAL_DIR)/demofast
-
-run-demov0: demov0
-	./$(STAGECRIVAL_DIR)/demov0
-
-run-demofast: demofast
-	$(SUDO) ./$(STAGECRIVAL_DIR)/demofast
-
-
-
-#EDIT THIS PARTS
-
-
-.PHONY: run-pyA run-pyA-test run-npA-test run-pyA-stress run-npA-stress
-
-
-# test20 with windows 3 and 5: expect BUY at 7 and SELL at 10
-run-pyA-test:
-	$(PY) stageA.py data/Group05/test20.csv 3 5
-run-npA-test:
-	$(PY) stageA_numpy.py data/Group05/test20.csv 3 5
-
-# stress_full.csv with the group windows; the results go to a file (a console is slow), the time still shows
-run-pyA-stress:
-	$(PY) src/stretch/stageA.py data/stress_full.csv 30 60 > src/stretch/pyA_stress.txt
-run-npA-stress:
-	$(PY) src/stretch/stageAnumpy.py data/stress_full.csv 30 60 > src/stretch/npA_stress.txt
-
-
-# everything: the test20 check first, then the stress run
-run-pyA: run-pyA-test run-npA-test run-pyA-stress run-npA-stress
-
-# HAND-WRITTEN ASSEMBLY STRETCH GOAL (AArch64: Raspberry Pi only)
-.PHONY: asm-bench run-asm asm-listing
-ifeq ($(OS),Windows_NT)
-asm-bench run-asm asm-listing:
-	@echo "The assembly stretch goal is AArch64 code: build and run it on the Raspberry Pi."
-else
-asm-bench:
-	$(CC) -O3 $(INC) -I src src/stretch/vwap.c src/stretch/vwap.S src/parser.c -o compiled/asm_bench
-run-asm: asm-bench
-	./compiled/asm_bench
-asm-listing:
-	$(CC) -O3 -S $(INC) -I src src/stretch/vwap.c -o compiled/vwap_O3.s
-endif
-
-# STRETCH GOALS: struct-of-arrays and percentile latency
-.PHONY: soa-test soa percentile-test percentile run-soa run-percentile
-soa-test:
-	$(CC) -O2 -DSHORT_WIN=3 -DLONG_WIN=5 -Ddata_file $(INC) -I src src/stretch/soa.c src/parser.c -o compiled/soa_test
-soa:
-	$(CC) -O2 -Dstress_file $(INC) -I src src/stretch/soa.c src/parser.c -o compiled/soa
-percentile-test:
-	$(CC) -O2 -DSHORT_WIN=3 -DLONG_WIN=5 -Ddata_file $(INC) -I src src/stretch/percentile.c src/parser.c -o compiled/percentile_test
-percentile:
-	$(CC) -O2 -Dstress_file $(INC) -I src src/stretch/percentile.c src/parser.c -o compiled/percentile
-
-run-soa: soa-test soa
-	./compiled/soa_test
-	./compiled/soa
-run-percentile: percentile-test percentile
-	./compiled/percentile_test
-	./compiled/percentile
+	$(MAKE) demo BOT=fast
+ 
+run-demov0:
+	$(MAKE) run-demo BOT=v0
+ 
+run-demofast:
+	$(MAKE) run-demo BOT=fast
+ 
