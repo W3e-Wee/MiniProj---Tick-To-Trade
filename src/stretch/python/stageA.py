@@ -6,7 +6,6 @@
 import sys
 import time
 
-DATA_FILE = "data/stress_full.csv"
 SHORT_WIN = 30
 LONG_WIN = 60
 if len(sys.argv) > 1:
@@ -93,7 +92,7 @@ for line in f:
 
 f.close()
 
-print("BUY = %d, SELL = %d" % (buy_count, sell_count))
+print("\n\nBUY = %d, SELL = %d" % (buy_count, sell_count))
 print("VWAP = %.8f" % vwap)
 if bar_trades > 0:
     print("%d %.8f %.8f %.8f %.8f %d" % (cur_sec, bar_open, bar_high, bar_low, bar_close, bar_trades))

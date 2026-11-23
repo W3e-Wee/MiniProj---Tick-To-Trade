@@ -12,7 +12,6 @@ except ImportError:
     print("NumPy is not installed. Install it with:  pip install numpy   (Raspberry Pi: sudo apt install python3-numpy)")
     sys.exit(1)
 
-DATA_FILE = "data/stress_full.csv"
 SHORT_WIN = 30
 LONG_WIN = 60
 if len(sys.argv) > 1:

@@ -7,6 +7,7 @@ STAGEAPLUS_DIR = compiled/stageA_plus
 STAGEB_DIR = compiled/stageB
 STAGEC_DIR = compiled/stageC
 STAGECRIVAL_DIR = compiled/stageC_rival
+STRETCH_DIR = compiled/stretch
  
 #rival
 RIVAL_SRC = src/stageCrival/compareRival.c src/stageCrival/common/rival.c src/stageCrival/v0Bot.c src/shared/parser.c provided/trade_io.c
@@ -17,6 +18,19 @@ RACE_SRC = src/stageCrival/raceDemo.c src/stageCrival/common/race.c $(REPLAY_SRC
 STAGEC_SRC = src/stageC/stageC.c src/shared/parser.c src/stageCrival/common/rival.c $(REPLAY_SRC)
 RACE_SPEED = 1000
 RACE_LED = -Dshow_signals #for the rpi
+
+# python
+PY       = py
+PY_SRC   = src/stretch/python
+PY_DATA     = data/stress_full.csv
+
+# SOA & percentile
+SOA_SRC = src/stretch/soa/soa.c src/stageCrival/common/rival.c src/shared/parser.c
+PERCENTILE_SRC = src/stretch/percentile/percentile.c src/stageCrival/common/rival.c src/shared/parser.c
+
+# vwap
+VWAP_SRC = src/stretch/assembly/vwap.c src/stretch/assembly/vwap.S src/stageCrival/common/rival.c src/shared/parser.c
+VWAP_RUNS = 5
 
 # which bot the race window runs: make run-demo BOT=v0   or   make run-demo BOT=fast
 BOT = fast
@@ -298,3 +312,57 @@ run-demov0:
 run-demofast:
 	$(MAKE) run-demo BOT=fast
  
+# ========================================================
+#  Stretch Goals
+# ========================================================
+run-python:
+	$(PY) $(PY_SRC)/stageA.py $(PY_DATA)
+
+run-numpy: 	
+	$(PY) $(PY_SRC)/stageAnumpy.py $(PY_DATA)
+
+# One program times three versions of the sum of price * qty over the stress file:
+# the plain C loop (gcc -O3), a hand-written AArch64 loop and a hand-written NEON loop.
+# The assembly only exists for AArch64, so on any other machine these targets just skip.
+ifeq ($(IS_PI),pi)
+vwap:
+	$(call MKDIR,$(STRETCH_DIR))
+	$(CC) -O3 $(CFLAGS) -Dstress_file $(INC) $(VWAP_SRC) -o $(STRETCH_DIR)/vwap
+
+# the comparison: VWAP_RUNS runs, pinned to core 2; each run prints the median of its own timings
+run-vwap: vwap
+	for i in $$(seq $(VWAP_RUNS)); do taskset -c 2 ./$(STRETCH_DIR)/vwap; done | tee $(STRETCH_DIR)/vwap_results.txt
+
+# cycles, instructions and cache misses of the whole program (for Appendix C)
+perf-vwap: vwap
+	sudo perf stat -e cycles,instructions,cache-misses taskset -c 2 ./$(STRETCH_DIR)/vwap 2> $(STRETCH_DIR)/vwap_perf.txt
+	@cat $(STRETCH_DIR)/vwap_perf.txt
+
+# the assembly gcc itself writes for the C loop, to compare with vwap.S
+listing-vwap:
+	$(call MKDIR,$(STRETCH_DIR))
+	$(CC) -S -O3 -mcpu=cortex-a76 -Dstress_file $(INC) src/stretch/assembly/vwap.c -o $(STRETCH_DIR)/vwap_c.s
+	@echo "Wrote $(STRETCH_DIR)/vwap_c.s (look for vwap_sum_c)"
+else
+vwap run-vwap perf-vwap listing-vwap:
+	@echo "Skipped: the hand-written assembly is AArch64, so this runs on the Raspberry Pi only."
+endif
+
+
+# --- Struct-of-Arrays: the same two jobs on an array of structs and on one array per field ---
+soa:
+	$(call MKDIR, $(STRETCH_DIR))
+	$(CC) -O2 $(CFLAGS) -Dstress_file $(INC) $(SOA_SRC) -o $(STRETCH_DIR)/soa
+
+run-soa: soa
+	$(PIN) $(call fixpath,./$(STRETCH_DIR)/soa) > $(call fixpath,$(STRETCH_DIR)/soa_results.txt)
+	@$(call show,$(STRETCH_DIR)/soa_results.txt)
+
+# --- Percentile latency: p50 and p99 of check_trade (needs the sort) ---
+percentile:
+	$(call MKDIR,$(STRETCH_DIR))
+	$(CC) -O2 $(CFLAGS) -Dstress_file $(INC) $(PERCENTILE_SRC) -o $(STRETCH_DIR)/percentile
+
+run-percentile: percentile
+	$(PIN) $(call fixpath,./$(STRETCH_DIR)/percentile) > $(call fixpath,$(STRETCH_DIR)/percentile_results.txt)
+	@$(call show,$(STRETCH_DIR)/percentile_results.txt)
