@@ -22,7 +22,7 @@ long long due_ns(int i, long long first_ts)
  * Waits till the replay clock reaches `due`. A trade that is already late is not waited for.
  * Sleeps when still far away.
  *
- * @param due When trade shoule come out
+ * @param due When trade should come out
  * @param start When replay begins
  *
  * @return The elapsed ns when wait ends. Shows how late trade is.
@@ -40,7 +40,7 @@ long long wait_until(long long due, uint64_t start)
     return elapsed;
 }
 
-/* Replays the first REPLAY seconds of market time */
+/* Replays the first REPLAYS seconds of market time */
 int past_replay_limit(int i, long long first_ts)
 {
     return REPLAYS > 0 && trades[i].ts_us - first_ts >= REPLAYS * US_PER_SEC;
@@ -78,7 +78,7 @@ void update_stats(ReplayStats *s, int i, int sig, long long latency, long long l
  */
 void print_summary(const ReplayStats *s, long long wall_ns)
 {
-    double market_s = (s->prev_ts - s->first_ts) / US_PER_SEC;
+    double market_s = (double)(s->prev_ts - s->first_ts) / US_PER_SEC;
 
     printf("\nReleased %d of %d trades\n", s->released, n_trades);
     printf("Market time covered:  %.1f s\n", market_s);

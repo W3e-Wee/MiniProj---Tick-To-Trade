@@ -99,7 +99,7 @@ static void signals_running(int *buys, int *sells)
     *buys = 0;
     *sells = 0;
 
-    /* Fill both window from first LONG_WIN */
+    /* Fill both windows from first LONG_WIN */
     for (i = 0; i < LONG_WIN; i++)
     {
         sum_long += trades[i].price;

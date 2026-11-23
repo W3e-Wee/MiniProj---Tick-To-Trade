@@ -13,10 +13,7 @@
      - check_trade(): the BUY/SELL decision for one trade
      - the P&L: positions, the price a bot gets for a signal, and the profit
 
-   The three programs that use it live in other files:
-     compareRival.c    the compare: runs both bots and scores them against the rival
-     v0malloc.c        race window 1
-     vfastestmalloc.c  race window 2 */
+*/
 
 Trade *trades = NULL;
 int n_trades = 0;
@@ -125,7 +122,7 @@ int load_trades(const char *path)
 
 /**
  * Gets the current trade index and updates the sum to decide the output signal.
- * Both SMAS are running-sums in fixed point and difference is cross-multiplied.
+ * Both SMAs are running-sums in fixed point and difference is cross-multiplied.
  * No division involved, must be called sequentially.
  *
  * @param i The current trade index
@@ -248,7 +245,7 @@ double position_pnl(const Position *pos)
 }
 
 /**
- * Same P&L but doesnt take into account unsold BTC.
+ * Same P&L but doesn't take into account unsold BTC.
  *
  * @param pos The position to read
  *

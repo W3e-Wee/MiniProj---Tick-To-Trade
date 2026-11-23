@@ -10,7 +10,7 @@
  *
  * @param total Running sum of the price * qty
  *
- * @return The elpased time of the pass
+ * @return The elapsed time of the pass
  */
 static uint64_t time_sscanf(double *total)
 {

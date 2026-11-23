@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <stdlib.h>
 #include <math.h>
 #include "timing.h"
 #include "../shared/constant.h"
@@ -59,7 +60,7 @@ static void write_ladder_dat(const uint64_t med[])
 
     if (out == NULL)
     {
-        printf("cannot write LADDER_DAT (does the folder exist?)\n");
+        printf("cannot write %s (does the folder exist?)\n", LADDER_DAT);
         return;
     }
     for (which = 0; which < VERSIONS; which++)
@@ -71,11 +72,19 @@ static void write_ladder_dat(const uint64_t med[])
 }
 #endif
 
-int main(void)
+int main(int argc, char **argv)
 {
     uint64_t med[VERSIONS];
     Result res[VERSIONS];
     int which;
+
+    if (argc == 2) /* perf mode: ./ladder_stress 3 runs only V3 */
+    {
+        which = atoi(argv[1]);
+        if (which < 0 || which >= VERSIONS)
+            return 1;
+        return time_version(which, &res[which], &med[which]) ? 0 : 1;
+    }
 
     for (which = 0; which < VERSIONS; which++)
     {

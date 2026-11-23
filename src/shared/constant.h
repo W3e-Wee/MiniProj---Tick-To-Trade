@@ -81,7 +81,7 @@
 /* The replay sleeps only when more than 20 ms early */
 #define SLEEP_IF_EARLY_NS (20 * NS_PER_MS)
 
-/* Total no. of now_ns() call to measure timer cost */
+/* Total no. of now_ns() calls to measure timer cost */
 #define TIMER_TEST_CALLS 1000
 
 /*********************************/

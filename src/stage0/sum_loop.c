@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include "../../provided/timing.h"
 #include "stage0_helper.h"
+#include <inttypes.h>
 
 #define MAX_NUMBER 100000000UL
 #define RUNS 5U
@@ -51,6 +52,7 @@ int main(void)
 
     uint64_t iter_median = median(times, RUNS); // get elapsed time
 
-    printf("N: %lld\tIterative Sum: %lld\t\tAverage Time(ns): %lld  Median(ns): %lld", n, iterative_sum, (avg_time / RUNS), iter_median);
+    printf("N: %" PRIu64 "\tIterative Sum: %" PRIu64 "\t\tAverage Time(ns): %" PRIu64 "  Median(ns): %" PRIu64 "\n",
+       n, iterative_sum, (avg_time / RUNS), iter_median);
     return 0;
 }
