@@ -20,16 +20,15 @@ RACE_SPEED = 1000
 RACE_LED = -Dshow_signals #for the rpi
 
 # python
-PY       = py
 PY_SRC   = src/stretch/python
-PY_DATA     = data/stress_full.csv
+PY_DATA  = data/stress_full.csv
 
 # SOA & percentile
 SOA_SRC = src/stretch/soa/soa.c src/stageCrival/common/rival.c src/shared/parser.c
 PERCENTILE_SRC = src/stretch/percentile/percentile.c src/stageCrival/common/rival.c src/shared/parser.c
 
 # vwap
-VWAP_SRC = src/stretch/assembly/vwap.c src/stretch/assembly/vwap.S src/stageCrival/common/rival.c src/shared/parser.c
+VWAP_SRC = src/stretch/assembly/vwap.c src/stretch/assembly/vwap.s src/stageCrival/common/rival.c src/shared/parser.c
 VWAP_RUNS = 5
 
 # which bot the race window runs: make run-demo BOT=v0   or   make run-demo BOT=fast
@@ -59,10 +58,12 @@ ifeq ($(OS),Windows_NT)
     fixpath = $(subst /,\,$(1))
     MKDIR = if not exist $(call fixpath,$(1)) mkdir $(call fixpath,$(1))
     RMDIR = if exist $(call fixpath,$(1)) rmdir /s /q $(call fixpath,$(1))
+	PY = py
 else
     fixpath = $(1)
     MKDIR = mkdir -p $(1)
     RMDIR = rm -rf $(1)
+	PY = python3
     # Only a Raspberry Pi has the LEDs, so only there do we need sudo and the LED build
     IS_PI := $(shell grep -qa "Raspberry Pi" /proc/device-tree/model 2>/dev/null && echo pi)
     ifeq ($(IS_PI),pi)
