@@ -2,6 +2,7 @@
 #include "../../provided/timing.h"
 #include "../../provided/led.h"
 #include "stage0_helper.h"
+#include <inttypes.h>
 
 #define DEFAULT_MAX_N 10000UL
 #define REPEATS 5U
@@ -60,8 +61,8 @@ int main()
     // End LED lifecycle
     led_cleanup();
 
-    printf("Iterative Sum: %lld\t\tAverage Time(ns): %lld   Median: %lld\n", iter_sum, iter_avg / REPEATS, iter_median);
-    printf("Recursive Sum: %lld\t\tAverage Time(ns): %lld   Median: %lld\n", recur_sum, recur_avg / REPEATS, recur_median);
+    printf("Iterative Sum: %" PRIu64 "\t\tAverage Time(ns): %" PRIu64 "   Median: %" PRIu64 "\n", iter_sum, iter_avg / REPEATS, iter_median);
+    printf("Recursive Sum: %" PRIu64 "\t\tAverage Time(ns): %" PRIu64 "   Median: %" PRIu64 "\n", recur_sum, recur_avg / REPEATS, recur_median);
 
     return 0;
 }
