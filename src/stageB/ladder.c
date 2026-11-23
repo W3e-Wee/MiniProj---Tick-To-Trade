@@ -60,7 +60,7 @@ static void write_ladder_dat(const uint64_t med[])
 
     if (out == NULL)
     {
-        printf("cannot write LADDER_DAT (does the folder exist?)\n");
+        printf("cannot write %s (does the folder exist?)\n", LADDER_DAT);
         return;
     }
     for (which = 0; which < VERSIONS; which++)

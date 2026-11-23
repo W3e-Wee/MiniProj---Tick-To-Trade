@@ -1,4 +1,5 @@
 #include <stdint.h>
+#include "stage0_helper.h"
 
 /**
  * Iteratively loops and sums values from 1 to `val`

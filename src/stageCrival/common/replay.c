@@ -78,7 +78,7 @@ void update_stats(ReplayStats *s, int i, int sig, long long latency, long long l
  */
 void print_summary(const ReplayStats *s, long long wall_ns)
 {
-    double market_s = (s->prev_ts - s->first_ts) / US_PER_SEC;
+    double market_s = (double)(s->prev_ts - s->first_ts) / US_PER_SEC;
 
     printf("\nReleased %d of %d trades\n", s->released, n_trades);
     printf("Market time covered:  %.1f s\n", market_s);
