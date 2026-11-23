@@ -9,6 +9,7 @@ This project reads offline Binance-style trade CSV files, computes VWAP, one-sec
 ## Group 05:
 
 Short SMA window: 30
+
 Long SMA window: 60
 
 ---
@@ -307,10 +308,4 @@ make run-percentile
 <!-- TODO: description and results of each stretch goal -->
 
 ---
-
-## Project Structure
-
-<!-- TODO: optional folder tree
-src/stage0, src/stageA, src/stageA_plus, src/stageB, src/stageC, src/stageCrival, src/stretch, src/shared
-provided/  data/  plots/  pi_results/  compiled/ -->
 
